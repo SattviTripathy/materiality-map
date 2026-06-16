@@ -1,0 +1,2402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Materiality Map — ESG Disclosure Engine for Utilities</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap">
+
+  <!-- React + ReactDOM (development builds for clear errors) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+
+  <!-- Babel standalone for in-browser JSX compilation -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- SheetJS for Excel export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #faf8fc;
+      --bg-card: #ffffff;
+      --ink: #1a0a2e;
+      --ink-2: #2e2438;
+      --ink-3: #5d5466;
+      --ink-4: #9a93a4;
+      --line: #ece5f5;
+      --line-2: #d8cfe5;
+      --accent: #5b00a8;
+      --accent-2: #7a1fd4;
+      --signal: #a01060;
+      --signal-soft: #f5e0ec;
+      --gold: #6e5818;
+      --warn-bg: #fdf6e3;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      font-feature-settings: 'ss01', 'cv11';
+    }
+    .display-font { font-family: 'Fraunces', Georgia, serif; font-feature-settings: 'ss01'; letter-spacing: -0.02em; }
+    .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+    .num { font-variant-numeric: tabular-nums; }
+
+    .stage-dot { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    .fade-in { animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .field-input {
+      width: 100%;
+      padding: 12px 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 14px;
+      color: var(--ink);
+      transition: border-color 0.15s;
+    }
+    .field-input:focus { outline: none; border-color: var(--accent); }
+    textarea.field-input { resize: vertical; min-height: 100px; line-height: 1.6; }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 7px 12px;
+      border: 1px solid var(--line-2);
+      border-radius: 2px;
+      font-size: 13px;
+      cursor: pointer;
+      background: var(--bg-card);
+      transition: all 0.15s;
+      font-weight: 500;
+      font-family: inherit;
+      color: var(--ink);
+    }
+    .chip:hover { border-color: var(--ink-3); }
+    .chip.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+    .btn-primary {
+      background: var(--ink);
+      color: var(--bg);
+      border: none;
+      padding: 13px 26px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 2px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.15s;
+      letter-spacing: 0.02em;
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--accent); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-secondary {
+      background: transparent;
+      color: var(--ink);
+      border: 1px solid var(--line-2);
+      padding: 12px 22px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 2px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.15s;
+    }
+    .btn-secondary:hover { border-color: var(--ink); }
+    .btn-ghost {
+      background: transparent;
+      color: var(--ink-3);
+      border: none;
+      padding: 6px 10px;
+      font-family: inherit;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.15s;
+    }
+    .btn-ghost:hover { color: var(--ink); }
+
+    table.disc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table.disc-table th {
+      text-align: left;
+      font-weight: 600;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line-2);
+      background: var(--bg);
+      position: sticky; top: 0;
+    }
+    table.disc-table td {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      line-height: 1.5;
+    }
+    table.disc-table tr:hover td { background: #f3edfa; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      border-radius: 2px;
+    }
+    .badge-mandatory { background: var(--signal-soft); color: var(--signal); }
+    .badge-voluntary { background: #ebe4f5; color: var(--ink-3); }
+    .badge-verify { background: var(--warn-bg); color: var(--gold); border: 1px solid #e8d896; }
+
+    .scrollarea { max-height: 70vh; overflow: auto; border: 1px solid var(--line); border-radius: 4px; background: var(--bg-card); }
+
+    .tab-row { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 24px; flex-wrap: wrap; }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      padding: 12px 18px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--ink-3);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: all 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tab-btn:hover { color: var(--ink); }
+    .tab-btn.active { color: var(--ink); border-bottom-color: var(--ink); }
+    .tab-count { background: var(--bg); padding: 1px 7px; border-radius: 10px; font-size: 11px; color: var(--ink-3); }
+    .tab-btn.active .tab-count { background: var(--ink); color: var(--bg); }
+
+    .arc-row { padding: 14px 18px; border-bottom: 1px solid var(--line); display: flex; align-items: flex-start; gap: 16px; }
+    .arc-row:hover { background: #f3edfa; }
+    .arc-process-header { background: #ebe4f5; padding: 10px 18px; font-weight: 600; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); border-bottom: 1px solid var(--line-2); }
+
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+    body::-webkit-scrollbar { width: 8px; height: 8px; }
+    body::-webkit-scrollbar-track { background: transparent; }
+    body::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 4px; }
+    body::-webkit-scrollbar-thumb:hover { background: var(--ink-4); }
+
+    /* SVG icon sizing helper */
+    .icon { display: inline-block; vertical-align: middle; }
+
+    /* Layout grids (class-based so media queries can reach them) */
+    .profile-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 48px; align-items: start; }
+    .archetype-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(380px, 100%), 1fr)); gap: 16px; margin-bottom: 32px; }
+
+    /* AI assist panel */
+    .ai-panel { margin-top: 12px; padding: 16px; border: 1px solid var(--line-2); border-radius: 6px; background: linear-gradient(180deg, #f6f0fc, #fbf8fe); }
+    .ai-spin { width: 14px; height: 14px; border: 2px solid var(--line-2); border-top-color: var(--accent); border-radius: 50%; display: inline-block; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .ai-note { font-size: 12.5px; color: var(--ink-3); line-height: 1.55; }
+
+    /* Coherence warning */
+    .warn-row { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; background: var(--warn-bg); border: 1px solid #e8d896; border-radius: 4px; font-size: 13px; color: var(--gold); line-height: 1.5; }
+
+    /* Responsive */
+    @media (max-width: 860px) {
+      .profile-grid { grid-template-columns: 1fr; gap: 32px; }
+      .profile-grid aside { position: static !important; }
+      .hdr-inner { padding: 24px 20px !important; gap: 16px !important; }
+      .main-pad { padding: 0 18px 64px !important; }
+      .stage-pad { padding: 0 18px !important; }
+      .hero-h1 { font-size: 32px !important; }
+      .results-head { flex-direction: column !important; align-items: flex-start !important; }
+    }
+    @media (max-width: 520px) {
+      .hero-h1 { font-size: 27px !important; }
+      .nav-hide { display: none !important; }
+    }
+
+    /* Loading splash */
+    #loading-splash {
+      position: fixed; inset: 0;
+      background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 10000;
+      flex-direction: column; gap: 24px;
+    }
+    #loading-splash .logo {
+      font-family: 'Fraunces', Georgia, serif;
+      font-size: 38px;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+    }
+    #loading-splash .logo .accent { color: var(--accent); font-weight: 500; }
+    #loading-splash .pulse {
+      display: inline-block;
+      width: 6px; height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.3; transform: scale(0.8); }
+      50% { opacity: 1; transform: scale(1.2); }
+    }
+    #loading-splash .hint {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--ink-4);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading-splash">
+    <div class="logo">Materiality <span class="accent">Map</span></div>
+    <div class="hint">Loading <span class="pulse"></span></div>
+  </div>
+
+  <div id="root"></div>
+
+  <!-- The application code, compiled in-browser by Babel -->
+  <script type="text/babel" data-type="module" data-presets="react">
+    const { useState, useMemo, useEffect, useRef, useCallback, Fragment } = React;
+
+    // ============================================================================
+    // ICON COMPONENTS (inline SVG, no external library needed)
+    // ============================================================================
+
+    const Icon = ({ children, size = 16, color = 'currentColor', strokeWidth = 2 }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24"
+           fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round"
+           strokeLinejoin="round" className="icon">{children}</svg>
+    );
+
+    const ChevronRight = (p) => <Icon {...p}><polyline points="9 18 15 12 9 6"/></Icon>;
+    const ChevronLeft = (p) => <Icon {...p}><polyline points="15 18 9 12 15 6"/></Icon>;
+    const Download = (p) => <Icon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></Icon>;
+    const Edit2 = (p) => <Icon {...p}><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></Icon>;
+    const Trash2 = (p) => <Icon {...p}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></Icon>;
+    const AlertCircle = (p) => <Icon {...p}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></Icon>;
+    const CheckCircle = (p) => <Icon {...p}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></Icon>;
+    const Info = (p) => <Icon {...p}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></Icon>;
+    const Sparkles = (p) => <Icon {...p}><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></Icon>;
+    const FileText = (p) => <Icon {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></Icon>;
+    const Layers = (p) => <Icon {...p}><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></Icon>;
+    const GitBranch = (p) => <Icon {...p}><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></Icon>;
+
+    // ============================================================================
+    // DATA: ARCHETYPE LIBRARY (15 archetypes)
+    // ============================================================================
+
+    const ARCHETYPES = {
+      '1_Coal_Thermal': {
+        name: 'Coal-Fired Thermal Power Generation',
+        description: 'Pulverized coal combustion with steam Rankine cycle. Includes flue gas treatment, ash handling, and water management.',
+        tags: { value_chain: ['Generation'], fuels: ['Coal'] },
+        rows: [
+          { process_id: 1.0, process_name: 'Power Generation Cycle', sub_id: '1.1', phase: 'Preparation', verbs: 'Procuring → Transporting → Storing → Pulverizing' },
+          { process_id: null, process_name: null, sub_id: '1.2', phase: 'Combustion', verbs: 'Injecting → Igniting → Burning → Radiating' },
+          { process_id: null, process_name: null, sub_id: '1.3', phase: 'Conversion', verbs: 'Boiling → Pressurizing → Superheating → Expanding' },
+          { process_id: null, process_name: null, sub_id: '1.4', phase: 'Generation', verbs: 'Spinning → Inducing → Stepping-up → Transmitting' },
+          { process_id: null, process_name: null, sub_id: '1.5', phase: 'Recovery', verbs: 'Exhausting → Condensing → Cooling → Pumping' },
+          { process_id: 2.0, process_name: 'Environmental Mitigation', sub_id: '2.1', phase: 'Gas Treatment', verbs: 'Ducting → Catalyzing → Charging → Scrubbing' },
+          { process_id: null, process_name: null, sub_id: '2.2', phase: 'Particulate Capture', verbs: 'Collecting → Filtering → Vibrating → Hoisting' },
+          { process_id: null, process_name: null, sub_id: '2.3', phase: 'Chemical Neutralization', verbs: 'Spraying → Reacting → Precipitating → Dewatering' },
+          { process_id: 3.0, process_name: 'Resource & Waste Lifecycle', sub_id: '3.1', phase: 'Fuel Logistics', verbs: 'Unloading → Conveying → Crushing → Feeding' },
+          { process_id: null, process_name: null, sub_id: '3.2', phase: 'Ash Management', verbs: 'Quenching → Extracting → Storing → Selling' },
+          { process_id: null, process_name: null, sub_id: '3.3', phase: 'Water Management', verbs: 'Extracting → Treating → Circulating → Evaporating' },
+          { process_id: null, process_name: null, sub_id: '3.4', phase: 'Byproduct Recovery', verbs: 'Crystallizing → Centrifuging → Drying → Shipping' },
+        ]
+      },
+      '2_CCGT': {
+        name: 'Combined Cycle Gas Turbine',
+        description: 'Natural gas combustion in gas turbine with HRSG driving a steam turbine. Higher efficiency, lower emissions vs coal.',
+        tags: { value_chain: ['Generation'], fuels: ['Gas'] },
+        rows: [
+          { process_id: 1.0, process_name: 'Power Generation Cycle', sub_id: '1.1', phase: 'Fuel Conditioning', verbs: 'Receiving → Metering → Heating → Filtering' },
+          { process_id: null, process_name: null, sub_id: '1.2', phase: 'Gas Turbine Combustion', verbs: 'Compressing → Mixing → Igniting → Expanding' },
+          { process_id: null, process_name: null, sub_id: '1.3', phase: 'Heat Recovery', verbs: 'Ducting → Transferring → Steaming → Superheating' },
+          { process_id: null, process_name: null, sub_id: '1.4', phase: 'Steam Cycle', verbs: 'Expanding → Condensing → Pumping → Reheating' },
+          { process_id: null, process_name: null, sub_id: '1.5', phase: 'Power Output', verbs: 'Generating → Synchronizing → Stepping-up → Dispatching' },
+          { process_id: 2.0, process_name: 'Environmental Mitigation', sub_id: '2.1', phase: 'NOx Control', verbs: 'Injecting → Mixing → Reducing → Venting' },
+          { process_id: null, process_name: null, sub_id: '2.2', phase: 'CO Oxidation', verbs: 'Catalyzing → Oxidizing → Monitoring → Reporting' },
+          { process_id: null, process_name: null, sub_id: '2.3', phase: 'Plume Dispersion', verbs: 'Stacking → Dispersing → Sampling → Logging' },
+          { process_id: 3.0, process_name: 'Resource & Waste Lifecycle', sub_id: '3.1', phase: 'Gas Supply Logistics', verbs: 'Pipelining → Regasifying → Storing → Distributing' },
+          { process_id: null, process_name: null, sub_id: '3.2', phase: 'Cooling Water Management', verbs: 'Withdrawing → Treating → Circulating → Discharging' },
+          { process_id: null, process_name: null, sub_id: '3.3', phase: 'Lube & Chemical Handling', verbs: 'Receiving → Storing → Dosing → Disposing' },
+          { process_id: null, process_name: null, sub_id: '3.4', phase: 'Methane Leak Management', verbs: 'Detecting → Quantifying → Repairing → Reporting' },
+        ]
+      },
+      '3_Solar_PV': {
+        name: 'Utility-Scale Solar Photovoltaic',
+        description: 'Ground-mounted PV arrays with inverters and grid export. May co-locate with battery storage.',
+        tags: { value_chain: ['Generation'], fuels: ['Solar-PV'] },
+        rows: [
+          { process_id: 1.0, process_name: 'Power Generation Cycle', sub_id: '1.1', phase: 'Solar Capture', verbs: 'Receiving → Tracking → Absorbing → Converting' },
+          { process_id: null, process_name: null, sub_id: '1.2', phase: 'DC Aggregation', verbs: 'Stringing → Combining → Monitoring → Protecting' },
+          { process_id: null, process_name: null, sub_id: '1.3', phase: 'Power Conversion', verbs: 'Inverting → Filtering → Synchronizing → Conditioning' },
+          { process_id: null, process_name: null, sub_id: '1.4', phase: 'Grid Injection', verbs: 'Stepping-up → Metering → Exporting → Curtailing' },
+          { process_id: 2.0, process_name: 'Asset & Site Management', sub_id: '2.1', phase: 'Site Preparation', verbs: 'Clearing → Grading → Piling → Constructing' },
+          { process_id: null, process_name: null, sub_id: '2.2', phase: 'Module Cleaning', verbs: 'Inspecting → Washing → Drying → Logging' },
+          { process_id: null, process_name: null, sub_id: '2.3', phase: 'Vegetation Control', verbs: 'Mowing → Grazing → Spraying → Monitoring' },
+          { process_id: null, process_name: null, sub_id: '2.4', phase: 'Vegetation & Habitat Care', verbs: 'Restoring → Pollinating → Monitoring → Reporting' },
+          { process_id: 3.0, process_name: 'Resource & Waste Lifecycle', sub_id: '3.1', phase: 'Water Use', verbs: 'Sourcing → Pumping → Spraying → Recycling' },
+          { process_id: null, process_name: null, sub_id: '3.2', phase: 'Module End-of-Life', verbs: 'Decommissioning → Dismantling → Recycling → Reporting' },
+          { process_id: null, process_name: null, sub_id: '3.3', phase: 'Inverter & Battery Disposal', verbs: 'Removing → Segregating → Recycling → Documenting' },
+          { process_id: null, process_name: null, sub_id: '3.4', phase: 'Land Restoration', verbs: 'Grading → Reseeding → Monitoring → Returning' },
+        ]
+      },
+      '4_Onshore_Wind': {
+        name: 'Onshore Wind Power',
+        description: 'Horizontal-axis wind turbines harvesting kinetic wind energy. Includes wind farm collection and substation export.',
+        tags: { value_chain: ['Generation'], fuels: ['Wind-Onshore'] },
+        rows: [
+          { process_id: 1.0, process_name: 'Power Generation Cycle', sub_id: '1.1', phase: 'Wind Capture', verbs: 'Yawing → Pitching → Rotating → Driving' },
+          { process_id: null, process_name: null, sub_id: '1.2', phase: 'Mechanical Transmission', verbs: 'Gearing → Coupling → Braking → Lubricating' },
+          { process_id: null, process_name: null, sub_id: '1.3', phase: 'Electrical Generation', verbs: 'Inducing → Rectifying → Inverting → Conditioning' },
+          { process_id: null, process_name: null, sub_id: '1.4', phase: 'Farm Collection', verbs: 'Cabling → Aggregating → Stepping-up → Exporting' },
+          { process_id: 2.0, process_name: 'Asset & Wildlife Management', sub_id: '2.1', phase: 'Turbine O&M', verbs: 'Inspecting → Lubricating → Replacing → Testing' },
+          { process_id: null, process_name: null, sub_id: '2.2', phase: 'Bird & Bat Mitigation', verbs: 'Monitoring → Curtailing → Recording → Reporting' },
+          { process_id: null, process_name: null, sub_id: '2.3', phase: 'Noise & Shadow Management', verbs: 'Measuring → Modelling → Curtailing → Communicating' },
+          { process_id: null, process_name: null, sub_id: '2.4', phase: 'Ice Throw & Safety', verbs: 'Detecting → Stopping → Signing → Patrolling' },
+          { process_id: 3.0, process_name: 'Resource & Waste Lifecycle', sub_id: '3.1', phase: 'Blade End-of-Life', verbs: 'Dismantling → Cutting → Repurposing → Landfilling' },
+          { process_id: null, process_name: null, sub_id: '3.2', phase: 'Lubricant & Hydraulic Fluids', verbs: 'Sampling → Replacing → Storing → Disposing' },
+          { process_id: null, process_name: null, sub_id: '3.3', phase: 'Land & Access Roads', verbs: 'Grading → Maintaining → Restoring → Returning' },
+          { process_id: null, process_name: null, sub_id: '3.4', phase: 'SF6 Management', verbs: 'Sealing → Detecting → Recovering → Reporting' },
+        ]
+      },
+      '5_Hydro_Large': {
+        name: 'Large Hydroelectric',
+        description: 'Conversion of potential energy of stored or flowing water into electricity. Reservoir, run-of-river, or pumped storage.',
+        tags: { value_chain: ['Generation'], fuels: ['Hydro-Reservoir', 'Hydro-RoR', 'Hydro-Pumped'] },
+        rows: [
+          { process_id: 1.0, process_name: 'Power Generation Cycle', sub_id: '1.1', phase: 'Water Storage', verbs: 'Damming → Impounding → Regulating → Releasing' },
+          { process_id: null, process_name: null, sub_id: '1.2', phase: 'Conveyance', verbs: 'Diverting → Channeling → Penstocking → Pressurizing' },
+          { process_id: null, process_name: null, sub_id: '1.3', phase: 'Turbine Operation', verbs: 'Spinning → Governing → Driving → Bypassing' },
+          { process_id: null, process_name: null, sub_id: '1.4', phase: 'Generation & Export', verbs: 'Inducing → Synchronizing → Stepping-up → Dispatching' },
+          { process_id: 2.0, process_name: 'Environmental & Social Management', sub_id: '2.1', phase: 'Ecological Flow', verbs: 'Releasing → Monitoring → Adjusting → Reporting' },
+          { process_id: null, process_name: null, sub_id: '2.2', phase: 'Fish Passage', verbs: 'Designing → Operating → Counting → Reporting' },
+          { process_id: null, process_name: null, sub_id: '2.3', phase: 'Sediment Management', verbs: 'Surveying → Sluicing → Dredging → Disposing' },
+          { process_id: null, process_name: null, sub_id: '2.4', phase: 'Reservoir GHG Management', verbs: 'Sampling → Measuring → Mitigating → Reporting' },
+          { process_id: 3.0, process_name: 'Resource & Community Lifecycle', sub_id: '3.1', phase: 'Catchment Protection', verbs: 'Afforesting → Patrolling → Restoring → Educating' },
+          { process_id: null, process_name: null, sub_id: '3.2', phase: 'Resettlement & Livelihoods', verbs: 'Engaging → Compensating → Rehabilitating → Monitoring' },
+          { process_id: null, process_name: null, sub_id: '3.3', phase: 'Dam Safety', verbs: 'Inspecting → Instrumenting → Drilling → Auditing' },
+          { process_id: null, process_name: null, sub_id: '3.4', phase: 'Recreation & Heritage', verbs: 'Permitting → Maintaining → Stewarding → Reporting' },
+        ]
+      },
+      '6_Nuclear': {
+        name: 'Nuclear Power Generation',
+        description: 'Controlled fission of uranium fuel for steam generation. Includes fuel cycle, radiation safety, high-integrity waste handling.',
+        tags: { value_chain: ['Generation'], fuels: ['Nuclear'] },
+        rows: [
+          { process_id: 1.0, process_name: 'Nuclear Power Cycle', sub_id: '1.1', phase: 'Fuel Loading', verbs: 'Receiving → Inspecting → Assembling → Loading' },
+          { process_id: null, process_name: null, sub_id: '1.2', phase: 'Reactor Operation', verbs: 'Initiating → Controlling → Moderating → Cooling' },
+          { process_id: null, process_name: null, sub_id: '1.3', phase: 'Steam Generation', verbs: 'Heating → Pressurizing → Separating → Drying' },
+          { process_id: null, process_name: null, sub_id: '1.4', phase: 'Turbine & Generation', verbs: 'Expanding → Spinning → Inducing → Stepping-up' },
+          { process_id: null, process_name: null, sub_id: '1.5', phase: 'Heat Rejection', verbs: 'Condensing → Cooling → Recirculating → Discharging' },
+          { process_id: 2.0, process_name: 'Safety & Containment', sub_id: '2.1', phase: 'Radiation Monitoring', verbs: 'Sensing → Logging → Alarming → Reporting' },
+          { process_id: null, process_name: null, sub_id: '2.2', phase: 'Containment Integrity', verbs: 'Sealing → Pressurizing → Testing → Certifying' },
+          { process_id: null, process_name: null, sub_id: '2.3', phase: 'Emergency Preparedness', verbs: 'Drilling → Coordinating → Communicating → Reviewing' },
+          { process_id: null, process_name: null, sub_id: '2.4', phase: 'Worker Dosimetry', verbs: 'Issuing → Monitoring → Recording → Limiting' },
+          { process_id: 3.0, process_name: 'Fuel & Waste Lifecycle', sub_id: '3.1', phase: 'Spent Fuel Management', verbs: 'Cooling → Storing → Casking → Transporting' },
+          { process_id: null, process_name: null, sub_id: '3.2', phase: 'Low-Level Waste', verbs: 'Segregating → Treating → Packaging → Disposing' },
+          { process_id: null, process_name: null, sub_id: '3.3', phase: 'Decommissioning Planning', verbs: 'Funding → Modelling → Scheduling → Reporting' },
+          { process_id: null, process_name: null, sub_id: '3.4', phase: 'Heat & Tritium Discharge', verbs: 'Measuring → Diluting → Releasing → Reporting' },
+        ]
+      },
+      '7_BESS': {
+        name: 'Grid-Scale Battery Storage',
+        description: 'Lithium-ion battery systems providing peak shifting, frequency regulation, capacity firming.',
+        tags: { value_chain: ['Generation', 'Storage'], fuels: ['Storage'] },
+        rows: [
+          { process_id: 1.0, process_name: 'Storage Operation Cycle', sub_id: '1.1', phase: 'Charging', verbs: 'Receiving → Conditioning → Storing → Balancing' },
+          { process_id: null, process_name: null, sub_id: '1.2', phase: 'Standby & Conditioning', verbs: 'Monitoring → Cooling → Equalizing → Logging' },
+          { process_id: null, process_name: null, sub_id: '1.3', phase: 'Discharging', verbs: 'Releasing → Inverting → Synchronizing → Exporting' },
+          { process_id: null, process_name: null, sub_id: '1.4', phase: 'Grid Service Delivery', verbs: 'Responding → Regulating → Bidding → Settling' },
+          { process_id: 2.0, process_name: 'Safety & Asset Management', sub_id: '2.1', phase: 'Thermal Management', verbs: 'Sensing → Cooling → Venting → Alarming' },
+          { process_id: null, process_name: null, sub_id: '2.2', phase: 'Fire Safety', verbs: 'Detecting → Suppressing → Isolating → Reporting' },
+          { process_id: null, process_name: null, sub_id: '2.3', phase: 'State-of-Health Monitoring', verbs: 'Cycling → Diagnosing → Derating → Replacing' },
+          { process_id: null, process_name: null, sub_id: '2.4', phase: 'Cybersecurity', verbs: 'Patching → Authenticating → Logging → Auditing' },
+          { process_id: 3.0, process_name: 'Material & Waste Lifecycle', sub_id: '3.1', phase: 'Critical Minerals Sourcing', verbs: 'Procuring → Tracing → Auditing → Reporting' },
+          { process_id: null, process_name: null, sub_id: '3.2', phase: 'Cell Replacement', verbs: 'Diagnosing → Removing → Replacing → Documenting' },
+          { process_id: null, process_name: null, sub_id: '3.3', phase: 'End-of-Life Management', verbs: 'Decommissioning → Discharging → Recycling → Reporting' },
+          { process_id: null, process_name: null, sub_id: '3.4', phase: 'Electrolyte & Coolant Handling', verbs: 'Containing → Sampling → Disposing → Recording' },
+        ]
+      },
+      '8_Transmission': {
+        name: 'Electricity Transmission',
+        description: 'Bulk power transfer over high-voltage networks from generators to distribution substations.',
+        tags: { value_chain: ['Transmission'], fuels: [] },
+        rows: [
+          { process_id: 1.0, process_name: 'Network Operation', sub_id: '1.1', phase: 'Load Flow Management', verbs: 'Forecasting → Dispatching → Balancing → Reconfiguring' },
+          { process_id: null, process_name: null, sub_id: '1.2', phase: 'Voltage & Frequency Control', verbs: 'Regulating → Compensating → Switching → Logging' },
+          { process_id: null, process_name: null, sub_id: '1.3', phase: 'Protection & Switching', verbs: 'Detecting → Isolating → Reclosing → Reporting' },
+          { process_id: null, process_name: null, sub_id: '1.4', phase: 'System Restoration', verbs: 'Diagnosing → Coordinating → Energizing → Documenting' },
+          { process_id: 2.0, process_name: 'Asset & Right-of-Way Management', sub_id: '2.1', phase: 'Line Maintenance', verbs: 'Patrolling → Inspecting → Repairing → Reporting' },
+          { process_id: null, process_name: null, sub_id: '2.2', phase: 'Vegetation Management', verbs: 'Surveying → Trimming → Spraying → Monitoring' },
+          { process_id: null, process_name: null, sub_id: '2.3', phase: 'Substation O&M', verbs: 'Testing → Servicing → Replacing → Auditing' },
+          { process_id: null, process_name: null, sub_id: '2.4', phase: 'Wildlife & Avian Protection', verbs: 'Designing → Insulating → Monitoring → Reporting' },
+          { process_id: 3.0, process_name: 'Environmental & Safety Lifecycle', sub_id: '3.1', phase: 'SF6 Gas Management', verbs: 'Filling → Detecting → Recovering → Reporting' },
+          { process_id: null, process_name: null, sub_id: '3.2', phase: 'Transformer Oil Management', verbs: 'Sampling → Filtering → Replacing → Disposing' },
+          { process_id: null, process_name: null, sub_id: '3.3', phase: 'EMF & Public Exposure', verbs: 'Measuring → Modelling → Communicating → Mitigating' },
+          { process_id: null, process_name: null, sub_id: '3.4', phase: 'Worker Safety (Live-line)', verbs: 'Permitting → Equipping → Training → Auditing' },
+        ]
+      },
+      '9_Distribution': {
+        name: 'Electricity Distribution (Discom)',
+        description: 'Last-mile delivery from substations to end consumers. Metering, billing, customer service, network reliability.',
+        tags: { value_chain: ['Distribution'], fuels: [] },
+        rows: [
+          { process_id: 1.0, process_name: 'Network Operation', sub_id: '1.1', phase: 'Power Receipt & Dispatch', verbs: 'Receiving → Stepping-down → Feeding → Sectionalizing' },
+          { process_id: null, process_name: null, sub_id: '1.2', phase: 'Outage Management', verbs: 'Detecting → Dispatching → Restoring → Communicating' },
+          { process_id: null, process_name: null, sub_id: '1.3', phase: 'Load Forecasting', verbs: 'Profiling → Modelling → Procuring → Scheduling' },
+          { process_id: null, process_name: null, sub_id: '1.4', phase: 'Loss Reduction', verbs: 'Auditing → Upgrading → Detecting → Penalizing' },
+          { process_id: 2.0, process_name: 'Customer Lifecycle', sub_id: '2.1', phase: 'Connection & Onboarding', verbs: 'Applying → Surveying → Energizing → Activating' },
+          { process_id: null, process_name: null, sub_id: '2.2', phase: 'Metering & Billing', verbs: 'Reading → Calculating → Invoicing → Collecting' },
+          { process_id: null, process_name: null, sub_id: '2.3', phase: 'Customer Service', verbs: 'Receiving → Resolving → Compensating → Surveying' },
+          { process_id: null, process_name: null, sub_id: '2.4', phase: 'Energy Access & Affordability', verbs: 'Subsidizing → Extending → Educating → Reporting' },
+          { process_id: 3.0, process_name: 'Asset & Safety Lifecycle', sub_id: '3.1', phase: 'Distribution Asset O&M', verbs: 'Patrolling → Replacing → Upgrading → Auditing' },
+          { process_id: null, process_name: null, sub_id: '3.2', phase: 'Public & Worker Safety', verbs: 'Insulating → Earthing → Training → Investigating' },
+          { process_id: null, process_name: null, sub_id: '3.3', phase: 'Transformer Oil & Waste', verbs: 'Sampling → Replacing → Storing → Disposing' },
+          { process_id: null, process_name: null, sub_id: '3.4', phase: 'DER & Net Metering', verbs: 'Approving → Interconnecting → Metering → Settling' },
+        ]
+      },
+      '10_Retail_Supply': {
+        name: 'Electricity Retail / Energy Supply',
+        description: 'Customer-facing energy retailer purchasing wholesale and selling tariffed or contracted supply.',
+        tags: { value_chain: ['Retail'], fuels: [] },
+        rows: [
+          { process_id: 1.0, process_name: 'Procurement & Trading', sub_id: '1.1', phase: 'Wholesale Purchase', verbs: 'Forecasting → Bidding → Contracting → Settling' },
+          { process_id: null, process_name: null, sub_id: '1.2', phase: 'PPA & REC Sourcing', verbs: 'Sourcing → Negotiating → Verifying → Retiring' },
+          { process_id: null, process_name: null, sub_id: '1.3', phase: 'Hedging & Risk', verbs: 'Modelling → Hedging → Marking → Reporting' },
+          { process_id: null, process_name: null, sub_id: '1.4', phase: 'Imbalance Settlement', verbs: 'Nominating → Reconciling → Penalizing → Recording' },
+          { process_id: 2.0, process_name: 'Customer Lifecycle', sub_id: '2.1', phase: 'Acquisition & Onboarding', verbs: 'Marketing → Quoting → Contracting → Switching' },
+          { process_id: null, process_name: null, sub_id: '2.2', phase: 'Tariff & Product Design', verbs: 'Pricing → Bundling → Communicating → Disclosing' },
+          { process_id: null, process_name: null, sub_id: '2.3', phase: 'Billing & Collections', verbs: 'Calculating → Invoicing → Collecting → Adjusting' },
+          { process_id: null, process_name: null, sub_id: '2.4', phase: 'Vulnerable Customer Support', verbs: 'Identifying → Subsidizing → Communicating → Reporting' },
+          { process_id: 3.0, process_name: 'Sustainability & Engagement', sub_id: '3.1', phase: 'Green Product Verification', verbs: 'Tracking → Auditing → Certifying → Disclosing' },
+          { process_id: null, process_name: null, sub_id: '3.2', phase: 'Demand-Side Management', verbs: 'Designing → Incentivizing → Measuring → Reporting' },
+          { process_id: null, process_name: null, sub_id: '3.3', phase: 'Customer Energy Education', verbs: 'Communicating → Advising → Tooling → Tracking' },
+          { process_id: null, process_name: null, sub_id: '3.4', phase: 'Complaints & Mis-selling', verbs: 'Logging → Investigating → Remedying → Disclosing' },
+        ]
+      },
+      '11_Integrated': {
+        name: 'Vertically Integrated Utility',
+        description: 'Single entity owning generation, transmission, distribution (and often retail). Pair with a generation archetype.',
+        tags: { value_chain: ['Integrated'], fuels: [] },
+        rows: [
+          { process_id: 1.0, process_name: 'Generation Portfolio Management', sub_id: '1.1', phase: 'Fuel & Resource Planning', verbs: 'Forecasting → Procuring → Contracting → Hedging' },
+          { process_id: null, process_name: null, sub_id: '1.2', phase: 'Plant Dispatch', verbs: 'Scheduling → Loading → Optimizing → Reporting' },
+          { process_id: null, process_name: null, sub_id: '1.3', phase: 'Capacity Planning', verbs: 'Modelling → Tendering → Constructing → Commissioning' },
+          { process_id: null, process_name: null, sub_id: '1.4', phase: 'Fuel Mix Transition', verbs: 'Targeting → Investing → Retiring → Disclosing' },
+          { process_id: 2.0, process_name: 'Network Operation (T&D)', sub_id: '2.1', phase: 'Bulk Transmission', verbs: 'Operating → Maintaining → Expanding → Reporting' },
+          { process_id: null, process_name: null, sub_id: '2.2', phase: 'Distribution Network', verbs: 'Operating → Restoring → Upgrading → Auditing' },
+          { process_id: null, process_name: null, sub_id: '2.3', phase: 'System Reliability', verbs: 'Measuring → Investing → Drilling → Disclosing' },
+          { process_id: null, process_name: null, sub_id: '2.4', phase: 'Grid Modernization', verbs: 'Planning → Deploying → Integrating → Reporting' },
+          { process_id: 3.0, process_name: 'Customer & Stakeholder Lifecycle', sub_id: '3.1', phase: 'Customer Service & Billing', verbs: 'Reading → Invoicing → Resolving → Surveying' },
+          { process_id: null, process_name: null, sub_id: '3.2', phase: 'Tariff & Regulatory Filings', verbs: 'Modelling → Filing → Defending → Implementing' },
+          { process_id: null, process_name: null, sub_id: '3.3', phase: 'Community & Land', verbs: 'Engaging → Compensating → Restoring → Reporting' },
+          { process_id: null, process_name: null, sub_id: '3.4', phase: 'ESG Disclosure & Strategy', verbs: 'Setting → Measuring → Verifying → Disclosing' },
+        ]
+      },
+      '12_Renewable_IPP': {
+        name: 'Renewable IPP (Multi-tech)',
+        description: 'Independent producer with portfolio of solar, wind, and/or storage assets selling via PPAs.',
+        tags: { value_chain: ['Generation'], fuels: ['Solar-PV', 'Wind-Onshore', 'Storage'] },
+        rows: [
+          { process_id: 1.0, process_name: 'Asset Development', sub_id: '1.1', phase: 'Resource Assessment', verbs: 'Surveying → Modelling → Validating → Permitting' },
+          { process_id: null, process_name: null, sub_id: '1.2', phase: 'Land & Permitting', verbs: 'Acquiring → Engaging → Permitting → Closing' },
+          { process_id: null, process_name: null, sub_id: '1.3', phase: 'Construction & Commissioning', verbs: 'Procuring → Constructing → Testing → Energizing' },
+          { process_id: null, process_name: null, sub_id: '1.4', phase: 'Project Financing', verbs: 'Modelling → Negotiating → Closing → Servicing' },
+          { process_id: 2.0, process_name: 'Asset Operation', sub_id: '2.1', phase: 'Generation Operations', verbs: 'Forecasting → Dispatching → Curtailing → Settling' },
+          { process_id: null, process_name: null, sub_id: '2.2', phase: 'Predictive Maintenance', verbs: 'Sensing → Diagnosing → Scheduling → Repairing' },
+          { process_id: null, process_name: null, sub_id: '2.3', phase: 'Performance Optimization', verbs: 'Benchmarking → Analyzing → Upgrading → Reporting' },
+          { process_id: null, process_name: null, sub_id: '2.4', phase: 'Offtake & Settlement', verbs: 'Invoicing → Reconciling → Hedging → Reporting' },
+          { process_id: 3.0, process_name: 'Sustainability & ESG', sub_id: '3.1', phase: 'REC & GO Issuance', verbs: 'Registering → Issuing → Trading → Retiring' },
+          { process_id: null, process_name: null, sub_id: '3.2', phase: 'Biodiversity & Land', verbs: 'Baselining → Mitigating → Monitoring → Restoring' },
+          { process_id: null, process_name: null, sub_id: '3.3', phase: 'Supply Chain Due Diligence', verbs: 'Mapping → Auditing → Remedying → Disclosing' },
+          { process_id: null, process_name: null, sub_id: '3.4', phase: 'Decommissioning & Recycling', verbs: 'Planning → Funding → Executing → Reporting' },
+        ]
+      },
+      '13_Biomass_WtE': {
+        name: 'Biomass / Waste-to-Energy',
+        description: 'Combustion or gasification of biomass, agri-residue, or municipal/industrial waste for steam and electricity.',
+        tags: { value_chain: ['Generation'], fuels: ['Biomass', 'WtE'] },
+        rows: [
+          { process_id: 1.0, process_name: 'Power Generation Cycle', sub_id: '1.1', phase: 'Feedstock Reception', verbs: 'Receiving → Weighing → Sorting → Storing' },
+          { process_id: null, process_name: null, sub_id: '1.2', phase: 'Pre-treatment', verbs: 'Shredding → Drying → Pelletizing → Conveying' },
+          { process_id: null, process_name: null, sub_id: '1.3', phase: 'Combustion / Gasification', verbs: 'Feeding → Igniting → Burning → Gasifying' },
+          { process_id: null, process_name: null, sub_id: '1.4', phase: 'Steam Cycle & Generation', verbs: 'Boiling → Expanding → Generating → Exporting' },
+          { process_id: 2.0, process_name: 'Environmental Mitigation', sub_id: '2.1', phase: 'Flue Gas Cleaning', verbs: 'Cooling → Sorbenting → Filtering → Monitoring' },
+          { process_id: null, process_name: null, sub_id: '2.2', phase: 'Dioxin / Furan Control', verbs: 'Quenching → Adsorbing → Sampling → Reporting' },
+          { process_id: null, process_name: null, sub_id: '2.3', phase: 'Odour Management', verbs: 'Enclosing → Extracting → Treating → Communicating' },
+          { process_id: null, process_name: null, sub_id: '2.4', phase: 'Leachate Management', verbs: 'Collecting → Treating → Testing → Discharging' },
+          { process_id: 3.0, process_name: 'Resource & Community Lifecycle', sub_id: '3.1', phase: 'Sustainable Feedstock', verbs: 'Sourcing → Certifying → Auditing → Reporting' },
+          { process_id: null, process_name: null, sub_id: '3.2', phase: 'Bottom & Fly Ash', verbs: 'Quenching → Stabilizing → Recovering → Disposing' },
+          { process_id: null, process_name: null, sub_id: '3.3', phase: 'Water & Wastewater', verbs: 'Withdrawing → Treating → Reusing → Discharging' },
+          { process_id: null, process_name: null, sub_id: '3.4', phase: 'Community Engagement', verbs: 'Consulting → Disclosing → Compensating → Reporting' },
+        ]
+      },
+      '14_Trading': {
+        name: 'Electricity Trading',
+        description: 'Buying and selling electricity, capacity, RECs, and ancillary services across wholesale markets.',
+        tags: { value_chain: ['Trading'], fuels: [] },
+        rows: [
+          { process_id: 1.0, process_name: 'Market Operations', sub_id: '1.1', phase: 'Market Analysis', verbs: 'Forecasting → Modelling → Positioning → Reporting' },
+          { process_id: null, process_name: null, sub_id: '1.2', phase: 'Bidding & Scheduling', verbs: 'Bidding → Awarding → Nominating → Confirming' },
+          { process_id: null, process_name: null, sub_id: '1.3', phase: 'Physical Settlement', verbs: 'Delivering → Reconciling → Invoicing → Settling' },
+          { process_id: null, process_name: null, sub_id: '1.4', phase: 'Ancillary Services', verbs: 'Offering → Activating → Recording → Settling' },
+          { process_id: 2.0, process_name: 'Risk & Compliance', sub_id: '2.1', phase: 'Market Risk', verbs: 'Modelling → Hedging → Limiting → Reporting' },
+          { process_id: null, process_name: null, sub_id: '2.2', phase: 'Credit Risk', verbs: 'Assessing → Collateralizing → Monitoring → Escalating' },
+          { process_id: null, process_name: null, sub_id: '2.3', phase: 'Regulatory Compliance', verbs: 'Registering → Reporting → Auditing → Remediating' },
+          { process_id: null, process_name: null, sub_id: '2.4', phase: 'Surveillance & Conduct', verbs: 'Monitoring → Investigating → Reporting → Training' },
+          { process_id: 3.0, process_name: 'Sustainability Products', sub_id: '3.1', phase: 'REC & GO Trading', verbs: 'Sourcing → Tracking → Trading → Retiring' },
+          { process_id: null, process_name: null, sub_id: '3.2', phase: 'Carbon Markets', verbs: 'Sourcing → Verifying → Trading → Retiring' },
+          { process_id: null, process_name: null, sub_id: '3.3', phase: 'Green PPA Origination', verbs: 'Structuring → Negotiating → Closing → Servicing' },
+          { process_id: null, process_name: null, sub_id: '3.4', phase: 'Climate Disclosure', verbs: 'Tracking → Calculating → Disclosing → Assuring' },
+        ]
+      },
+      '15_EV_Charging': {
+        name: 'EV Charging Network',
+        description: 'Deployment and operation of public/fleet EV charging stations. Energy procurement, customer experience, grid integration.',
+        tags: { value_chain: ['Distribution'], fuels: [] },
+        rows: [
+          { process_id: 1.0, process_name: 'Network Deployment', sub_id: '1.1', phase: 'Site Selection & Permitting', verbs: 'Surveying → Negotiating → Permitting → Designing' },
+          { process_id: null, process_name: null, sub_id: '1.2', phase: 'Grid Connection', verbs: 'Applying → Upgrading → Connecting → Energizing' },
+          { process_id: null, process_name: null, sub_id: '1.3', phase: 'Hardware Installation', verbs: 'Procuring → Installing → Commissioning → Certifying' },
+          { process_id: null, process_name: null, sub_id: '1.4', phase: 'Network Activation', verbs: 'Configuring → Onboarding → Pricing → Marketing' },
+          { process_id: 2.0, process_name: 'Operations & Customer Experience', sub_id: '2.1', phase: 'Charging Session', verbs: 'Authenticating → Charging → Metering → Billing' },
+          { process_id: null, process_name: null, sub_id: '2.2', phase: 'Uptime & Reliability', verbs: 'Monitoring → Diagnosing → Dispatching → Repairing' },
+          { process_id: null, process_name: null, sub_id: '2.3', phase: 'Customer Support', verbs: 'Receiving → Resolving → Refunding → Surveying' },
+          { process_id: null, process_name: null, sub_id: '2.4', phase: 'Smart & V2G Services', verbs: 'Forecasting → Optimizing → Dispatching → Settling' },
+          { process_id: 3.0, process_name: 'Sustainability & Asset Lifecycle', sub_id: '3.1', phase: 'Green Energy Sourcing', verbs: 'Procuring → Verifying → Disclosing → Reporting' },
+          { process_id: null, process_name: null, sub_id: '3.2', phase: 'Hardware Replacement', verbs: 'Diagnosing → Replacing → Recycling → Reporting' },
+          { process_id: null, process_name: null, sub_id: '3.3', phase: 'Accessibility & Equity', verbs: 'Mapping → Deploying → Subsidizing → Reporting' },
+          { process_id: null, process_name: null, sub_id: '3.4', phase: 'Data Privacy & Cybersecurity', verbs: 'Encrypting → Authenticating → Patching → Auditing' },
+        ]
+      },
+    };
+
+    // ============================================================================
+    // DATA: DISCLOSURE MASTER
+    // ============================================================================
+
+    const DISCLOSURES = {
+      'D-GRI-2-7': { standard: 'GRI', code: '2-7', name: 'Employees', unit: 'Headcount', pillar: 'Social - Workforce' },
+      'D-GRI-2-8': { standard: 'GRI', code: '2-8', name: 'Workers who are not employees', unit: 'Headcount', pillar: 'Social - Workforce' },
+      'D-GRI-2-23': { standard: 'GRI', code: '2-23', name: 'Policy commitments', unit: 'Narrative', pillar: 'Governance' },
+      'D-GRI-2-30': { standard: 'GRI', code: '2-30', name: 'Collective bargaining agreements', unit: '%', pillar: 'Social - Workforce' },
+      'D-GRI-3-1': { standard: 'GRI', code: '3-1', name: 'Process to determine material topics', unit: 'Narrative', pillar: 'Governance' },
+      'D-GRI-3-2': { standard: 'GRI', code: '3-2', name: 'List of material topics', unit: 'List', pillar: 'Governance' },
+      'D-GRI-3-3': { standard: 'GRI', code: '3-3', name: 'Management of material topics', unit: 'Narrative', pillar: 'Governance' },
+      'D-GRI-205-1': { standard: 'GRI', code: '205-1', name: 'Operations assessed for corruption risks', unit: '%', pillar: 'Governance' },
+      'D-GRI-205-2': { standard: 'GRI', code: '205-2', name: 'Anti-corruption training', unit: '% trained', pillar: 'Governance' },
+      'D-GRI-302-1': { standard: 'GRI', code: '302-1', name: 'Energy consumption within the organization', unit: 'GJ or MWh', pillar: 'Environment - Energy' },
+      'D-GRI-302-3': { standard: 'GRI', code: '302-3', name: 'Energy intensity', unit: 'GJ / unit', pillar: 'Environment - Energy' },
+      'D-GRI-303-1': { standard: 'GRI', code: '303-1', name: 'Interactions with water as a shared resource', unit: 'Narrative', pillar: 'Environment - Water' },
+      'D-GRI-303-3': { standard: 'GRI', code: '303-3', name: 'Water withdrawal', unit: 'ML', pillar: 'Environment - Water' },
+      'D-GRI-303-4': { standard: 'GRI', code: '303-4', name: 'Water discharge', unit: 'ML', pillar: 'Environment - Water' },
+      'D-GRI-303-5': { standard: 'GRI', code: '303-5', name: 'Water consumption', unit: 'ML', pillar: 'Environment - Water' },
+      'D-GRI-304-1': { standard: 'GRI', code: '304-1', name: 'Operational sites in/near protected areas', unit: 'Count / area', pillar: 'Environment - Biodiversity' },
+      'D-GRI-304-2': { standard: 'GRI', code: '304-2', name: 'Significant impacts on biodiversity', unit: 'Narrative', pillar: 'Environment - Biodiversity' },
+      'D-GRI-304-3': { standard: 'GRI', code: '304-3', name: 'Habitats protected or restored', unit: 'Hectares', pillar: 'Environment - Biodiversity' },
+      'D-GRI-305-1': { standard: 'GRI', code: '305-1', name: 'Direct (Scope 1) GHG emissions', unit: 'tCO2e', pillar: 'Environment - Climate' },
+      'D-GRI-305-2': { standard: 'GRI', code: '305-2', name: 'Energy indirect (Scope 2) GHG emissions', unit: 'tCO2e', pillar: 'Environment - Climate' },
+      'D-GRI-305-3': { standard: 'GRI', code: '305-3', name: 'Other indirect (Scope 3) GHG emissions', unit: 'tCO2e', pillar: 'Environment - Climate' },
+      'D-GRI-305-4': { standard: 'GRI', code: '305-4', name: 'GHG emissions intensity', unit: 'tCO2e / unit', pillar: 'Environment - Climate' },
+      'D-GRI-305-7': { standard: 'GRI', code: '305-7', name: 'NOx, SOx, and other significant air emissions', unit: 'tonnes', pillar: 'Environment - Air' },
+      'D-GRI-306-3': { standard: 'GRI', code: '306-3', name: 'Waste generated', unit: 'Tonnes', pillar: 'Environment - Waste' },
+      'D-GRI-306-4': { standard: 'GRI', code: '306-4', name: 'Waste diverted from disposal', unit: 'Tonnes', pillar: 'Environment - Waste' },
+      'D-GRI-306-5': { standard: 'GRI', code: '306-5', name: 'Waste directed to disposal', unit: 'Tonnes', pillar: 'Environment - Waste' },
+      'D-GRI-308-1': { standard: 'GRI', code: '308-1', name: 'New suppliers screened — environmental', unit: '%', pillar: 'Governance - Supply Chain' },
+      'D-GRI-403-9': { standard: 'GRI', code: '403-9', name: 'Work-related injuries', unit: 'Rate', pillar: 'Social - OH&S' },
+      'D-GRI-404-1': { standard: 'GRI', code: '404-1', name: 'Average hours of training per year', unit: 'Hours', pillar: 'Social - Workforce' },
+      'D-GRI-405-1': { standard: 'GRI', code: '405-1', name: 'Diversity of governance bodies and employees', unit: '%', pillar: 'Social - Workforce' },
+      'D-GRI-413-1': { standard: 'GRI', code: '413-1', name: 'Operations with community engagement', unit: '%', pillar: 'Social - Communities' },
+      'D-GRI-413-2': { standard: 'GRI', code: '413-2', name: 'Operations with negative impacts on local communities', unit: 'Narrative', pillar: 'Social - Communities' },
+      'D-GRI-414-1': { standard: 'GRI', code: '414-1', name: 'New suppliers screened — social', unit: '%', pillar: 'Governance - Supply Chain' },
+      'D-GRI-418-1': { standard: 'GRI', code: '418-1', name: 'Substantiated complaints — customer privacy', unit: 'Count', pillar: 'Social - Customers' },
+      'D-GRI-EU1': { standard: 'GRI', code: 'EU1 [VERIFY]', name: 'Installed capacity by primary energy source', unit: 'MW', pillar: 'Environment - Energy' },
+      'D-GRI-EU2': { standard: 'GRI', code: 'EU2 [VERIFY]', name: 'Net energy output by primary source', unit: 'MWh', pillar: 'Environment - Energy' },
+      'D-GRI-EU4': { standard: 'GRI', code: 'EU4 [VERIFY]', name: 'Length of transmission and distribution lines', unit: 'km', pillar: 'Environment - Energy' },
+      'D-GRI-EU28': { standard: 'GRI', code: 'EU28 [VERIFY]', name: 'Power outage frequency (SAIFI)', unit: 'Index', pillar: 'Social - Customers' },
+      'D-GRI-EU29': { standard: 'GRI', code: 'EU29 [VERIFY]', name: 'Average power outage duration (SAIDI)', unit: 'Minutes', pillar: 'Social - Customers' },
+      'D-SASB-110a-1': { standard: 'SASB', code: 'IF-EU-110a.1 [VERIFY]', name: 'Gross global Scope 1 emissions', unit: 'tCO2e', pillar: 'Environment - Climate' },
+      'D-SASB-110a-2': { standard: 'SASB', code: 'IF-EU-110a.2 [VERIFY]', name: 'GHG management strategy', unit: 'Narrative', pillar: 'Governance - Climate' },
+      'D-SASB-120a-1': { standard: 'SASB', code: 'IF-EU-120a.1 [VERIFY]', name: 'Air emissions — NOx, SOx, PM, Hg, Pb', unit: 'Tonnes / kg', pillar: 'Environment - Air' },
+      'D-SASB-140a-1': { standard: 'SASB', code: 'IF-EU-140a.1 [VERIFY]', name: 'Water withdrawn and consumed', unit: 'Thousand m3', pillar: 'Environment - Water' },
+      'D-SASB-140a-2': { standard: 'SASB', code: 'IF-EU-140a.2 [VERIFY]', name: 'Water management incidents', unit: 'Count + $', pillar: 'Environment - Water' },
+      'D-SASB-150a-1': { standard: 'SASB', code: 'IF-EU-150a.1 [VERIFY]', name: 'Coal combustion residuals — generated and recycled', unit: 'Tonnes / %', pillar: 'Environment - Waste' },
+      'D-SASB-240a-1': { standard: 'SASB', code: 'IF-EU-240a.1 [VERIFY]', name: 'Average retail electric rate by customer class', unit: '$/kWh', pillar: 'Social - Customers' },
+      'D-SASB-240a-2': { standard: 'SASB', code: 'IF-EU-240a.2 [VERIFY]', name: 'Typical monthly electric bill — residential', unit: '$', pillar: 'Social - Customers' },
+      'D-SASB-240a-3': { standard: 'SASB', code: 'IF-EU-240a.3 [VERIFY]', name: 'Customer disconnections for non-payment', unit: 'Count / %', pillar: 'Social - Customers' },
+      'D-SASB-240a-4': { standard: 'SASB', code: 'IF-EU-240a.4 [VERIFY]', name: 'Customer service performance', unit: 'Narrative', pillar: 'Social - Customers' },
+      'D-SASB-320a-1': { standard: 'SASB', code: 'IF-EU-320a.1 [VERIFY]', name: 'Workforce health and safety — TRIR, fatality rate', unit: 'Rate', pillar: 'Social - OH&S' },
+      'D-SASB-420a-2': { standard: 'SASB', code: 'IF-EU-420a.2 [VERIFY]', name: 'Renewable energy generation', unit: 'MWh / %', pillar: 'Environment - Energy' },
+      'D-SASB-540a-1': { standard: 'SASB', code: 'IF-EU-540a.1 [VERIFY]', name: 'Grid reliability — SAIDI, SAIFI, CAIDI', unit: 'Minutes / Index', pillar: 'Social - Customers' },
+      'D-SASB-540a-2': { standard: 'SASB', code: 'IF-EU-540a.2 [VERIFY]', name: 'Nuclear safety incidents', unit: 'Count', pillar: 'Social - OH&S' },
+      'D-SASB-550a-2': { standard: 'SASB', code: 'IF-EU-550a.2 [VERIFY]', name: 'Cybersecurity NERC CIP violations', unit: 'Count + $', pillar: 'Governance - Cyber' },
+      'D-ISSB-S1-Gov': { standard: 'ISSB-S1', code: 'S1.27-S1.28 [VERIFY]', name: 'Governance of sustainability risks', unit: 'Narrative', pillar: 'Governance' },
+      'D-ISSB-S1-Strat': { standard: 'ISSB-S1', code: 'S1.30-S1.34 [VERIFY]', name: 'Strategy: material sustainability risks/opportunities', unit: 'Narrative', pillar: 'Governance' },
+      'D-ISSB-S1-Risk': { standard: 'ISSB-S1', code: 'S1.43-S1.44 [VERIFY]', name: 'Risk management process', unit: 'Narrative', pillar: 'Governance' },
+      'D-ISSB-S1-Metrics': { standard: 'ISSB-S1', code: 'S1.45-S1.50 [VERIFY]', name: 'Metrics and targets for sustainability', unit: 'Mixed', pillar: 'Governance' },
+      'D-ISSB-S2-Gov': { standard: 'ISSB-S2', code: 'S2.5-S2.7 [VERIFY]', name: 'Governance — climate', unit: 'Narrative', pillar: 'Governance - Climate' },
+      'D-ISSB-S2-Strat-Risk': { standard: 'ISSB-S2', code: 'S2.10-S2.13 [VERIFY]', name: 'Climate-related risks and opportunities', unit: 'Narrative', pillar: 'Governance - Climate' },
+      'D-ISSB-S2-Strat-Resilience': { standard: 'ISSB-S2', code: 'S2.22 [VERIFY]', name: 'Climate resilience and scenario analysis', unit: 'Narrative', pillar: 'Governance - Climate' },
+      'D-ISSB-S2-Risk-Mgmt': { standard: 'ISSB-S2', code: 'S2.25 [VERIFY]', name: 'Risk management — climate', unit: 'Narrative', pillar: 'Governance - Climate' },
+      'D-ISSB-S2-S1': { standard: 'ISSB-S2', code: 'S2.29(a)(i) [VERIFY]', name: 'Scope 1 GHG emissions', unit: 'tCO2e', pillar: 'Environment - Climate' },
+      'D-ISSB-S2-S2': { standard: 'ISSB-S2', code: 'S2.29(a)(ii) [VERIFY]', name: 'Scope 2 GHG emissions', unit: 'tCO2e', pillar: 'Environment - Climate' },
+      'D-ISSB-S2-S3': { standard: 'ISSB-S2', code: 'S2.29(a)(iii) [VERIFY]', name: 'Scope 3 GHG emissions', unit: 'tCO2e', pillar: 'Environment - Climate' },
+      'D-ISSB-S2-Intensity': { standard: 'ISSB-S2', code: 'S2.29(b) [VERIFY]', name: 'GHG intensity', unit: 'tCO2e / unit', pillar: 'Environment - Climate' },
+      'D-ISSB-S2-Targets': { standard: 'ISSB-S2', code: 'S2.33-S2.36 [VERIFY]', name: 'Climate-related targets', unit: 'Mixed', pillar: 'Governance - Climate' },
+      'D-ISSB-S2-Capex': { standard: 'ISSB-S2', code: 'S2.29(d) [VERIFY]', name: 'Capital deployed and aligned to climate', unit: '$', pillar: 'Governance - Climate' },
+      'D-ISSB-S2-IntCarbon': { standard: 'ISSB-S2', code: 'S2.29(e) [VERIFY]', name: 'Internal carbon price', unit: '$ / tCO2e', pillar: 'Governance - Climate' },
+      'D-ISSB-S2-Remuneration': { standard: 'ISSB-S2', code: 'S2.29(g) [VERIFY]', name: 'Climate-linked remuneration', unit: '%', pillar: 'Governance' },
+      'D-ESRS-E1-1': { standard: 'ESRS', code: 'E1-1 [VERIFY]', name: 'Transition plan for climate change mitigation', unit: 'Narrative', pillar: 'Environment - Climate' },
+      'D-ESRS-E1-4': { standard: 'ESRS', code: 'E1-4 [VERIFY]', name: 'Targets related to climate change', unit: 'Mixed', pillar: 'Environment - Climate' },
+      'D-ESRS-E1-5': { standard: 'ESRS', code: 'E1-5 [VERIFY]', name: 'Energy consumption and mix', unit: 'MWh / %', pillar: 'Environment - Energy' },
+      'D-ESRS-E1-6': { standard: 'ESRS', code: 'E1-6 [VERIFY]', name: 'Gross Scopes 1, 2, 3 GHG emissions', unit: 'tCO2e', pillar: 'Environment - Climate' },
+      'D-ESRS-E1-7': { standard: 'ESRS', code: 'E1-7 [VERIFY]', name: 'GHG removals and carbon credits', unit: 'tCO2e', pillar: 'Environment - Climate' },
+      'D-ESRS-E1-9': { standard: 'ESRS', code: 'E1-9 [VERIFY]', name: 'Anticipated financial effects from climate risks', unit: '$', pillar: 'Environment - Climate' },
+      'D-ESRS-E2-4': { standard: 'ESRS', code: 'E2-4 [VERIFY]', name: 'Pollution of air, water and soil', unit: 'Tonnes / kg', pillar: 'Environment - Pollution' },
+      'D-ESRS-E3-4': { standard: 'ESRS', code: 'E3-4 [VERIFY]', name: 'Water consumption', unit: 'm3', pillar: 'Environment - Water' },
+      'D-ESRS-E4-1': { standard: 'ESRS', code: 'E4-1 [VERIFY]', name: 'Transition plan & biodiversity', unit: 'Narrative', pillar: 'Environment - Biodiversity' },
+      'D-ESRS-E4-5': { standard: 'ESRS', code: 'E4-5 [VERIFY]', name: 'Biodiversity impact metrics', unit: 'Mixed', pillar: 'Environment - Biodiversity' },
+      'D-ESRS-E5-4': { standard: 'ESRS', code: 'E5-4 [VERIFY]', name: 'Resource inflows', unit: 'Tonnes / $', pillar: 'Environment - Circular' },
+      'D-ESRS-E5-5': { standard: 'ESRS', code: 'E5-5 [VERIFY]', name: 'Resource outflows — waste', unit: 'Tonnes', pillar: 'Environment - Circular' },
+      'D-ESRS-S1-6': { standard: 'ESRS', code: 'S1-6 [VERIFY]', name: 'Characteristics of employees', unit: 'Headcount', pillar: 'Social - Workforce' },
+      'D-ESRS-S1-13': { standard: 'ESRS', code: 'S1-13 [VERIFY]', name: 'Training and skills development', unit: 'Hours', pillar: 'Social - Workforce' },
+      'D-ESRS-S1-14': { standard: 'ESRS', code: 'S1-14 [VERIFY]', name: 'Health and safety', unit: 'Rate / count', pillar: 'Social - OH&S' },
+      'D-ESRS-S2-1': { standard: 'ESRS', code: 'S2-1 [VERIFY]', name: 'Policies on value chain workers', unit: 'Narrative', pillar: 'Social - Value Chain' },
+      'D-ESRS-S3-1': { standard: 'ESRS', code: 'S3-1 [VERIFY]', name: 'Policies on affected communities', unit: 'Narrative', pillar: 'Social - Communities' },
+      'D-ESRS-S3-3': { standard: 'ESRS', code: 'S3-3 [VERIFY]', name: 'Community remediation processes', unit: 'Narrative', pillar: 'Social - Communities' },
+      'D-ESRS-S4-1': { standard: 'ESRS', code: 'S4-1 [VERIFY]', name: 'Policies on consumers and end users', unit: 'Narrative', pillar: 'Social - Customers' },
+      'D-ESRS-G1-1': { standard: 'ESRS', code: 'G1-1 [VERIFY]', name: 'Business conduct and culture', unit: 'Narrative', pillar: 'Governance' },
+      'D-ESRS-G1-3': { standard: 'ESRS', code: 'G1-3 [VERIFY]', name: 'Prevention of corruption and bribery', unit: 'Narrative', pillar: 'Governance' },
+      'D-BRSR-P1-1': { standard: 'BRSR', code: 'P1 Essential 1 [VERIFY]', name: 'Anti-corruption training coverage', unit: '%', pillar: 'Governance' },
+      'D-BRSR-P3-1': { standard: 'BRSR', code: 'P3 Essential 1 [VERIFY]', name: 'Health, safety and accessibility', unit: 'Mixed', pillar: 'Social - Workforce' },
+      'D-BRSR-P3-2': { standard: 'BRSR', code: 'P3 Essential 11 [VERIFY]', name: 'Safety incidents — LTIFR, fatalities', unit: 'Rate / count', pillar: 'Social - OH&S' },
+      'D-BRSR-P3-3': { standard: 'BRSR', code: 'P3 Essential 7 [VERIFY]', name: 'Median remuneration and gender pay gap', unit: 'INR / Ratio', pillar: 'Social - Workforce' },
+      'D-BRSR-P6-1': { standard: 'BRSR', code: 'P6 Essential 1 [VERIFY]', name: 'Energy consumption and intensity', unit: 'GJ / per cr', pillar: 'Environment - Energy' },
+      'D-BRSR-P6-2': { standard: 'BRSR', code: 'P6 Essential 3 [VERIFY]', name: 'Water disclosures including stress areas', unit: 'KL', pillar: 'Environment - Water' },
+      'D-BRSR-P6-3': { standard: 'BRSR', code: 'P6 Essential 5 [VERIFY]', name: 'Air emissions other than GHG', unit: 'Tonnes', pillar: 'Environment - Air' },
+      'D-BRSR-P6-4': { standard: 'BRSR', code: 'P6 Essential 6 [VERIFY]', name: 'GHG emissions and intensity', unit: 'tCO2e', pillar: 'Environment - Climate' },
+      'D-BRSR-P6-5': { standard: 'BRSR', code: 'P6 Essential 8 [VERIFY]', name: 'Waste management', unit: 'Tonnes', pillar: 'Environment - Waste' },
+      'D-BRSR-P6-6': { standard: 'BRSR', code: 'P6 Essential 11 [VERIFY]', name: 'Operations near ecologically sensitive areas', unit: 'List', pillar: 'Environment - Biodiversity' },
+      'D-BRSR-P6-7': { standard: 'BRSR', code: 'P6 Leadership 3 [VERIFY]', name: 'Scope 3 emissions', unit: 'tCO2e', pillar: 'Environment - Climate' },
+      'D-BRSR-P8-1': { standard: 'BRSR', code: 'P8 Essential 4 [VERIFY]', name: 'CSR projects in aspirational districts', unit: 'List + INR', pillar: 'Social - Communities' },
+      'D-BRSR-P9-1': { standard: 'BRSR', code: 'P9 Essential 5 [VERIFY]', name: 'Customer complaints and data breaches', unit: 'Count', pillar: 'Social - Customers' },
+      'D-CDP-C2': { standard: 'CDP', code: 'C2 [VERIFY]', name: 'Risks and opportunities from climate change', unit: 'Structured', pillar: 'Governance - Climate' },
+      'D-CDP-C3': { standard: 'CDP', code: 'C3 [VERIFY]', name: 'Business strategy and scenario analysis', unit: 'Narrative', pillar: 'Governance - Climate' },
+      'D-CDP-C6': { standard: 'CDP', code: 'C6 [VERIFY]', name: 'Emissions data — Scope 1 and 2', unit: 'tCO2e', pillar: 'Environment - Climate' },
+      'D-CDP-C7': { standard: 'CDP', code: 'C7 [VERIFY]', name: 'Emissions breakdowns', unit: 'tCO2e', pillar: 'Environment - Climate' },
+      'D-CDP-C8': { standard: 'CDP', code: 'C8 [VERIFY]', name: 'Energy', unit: 'MWh', pillar: 'Environment - Energy' },
+      'D-CDP-C9': { standard: 'CDP', code: 'C9 [VERIFY]', name: 'Utility-specific module', unit: 'Mixed', pillar: 'Environment - Climate' },
+      'D-CDP-C12': { standard: 'CDP', code: 'C12 [VERIFY]', name: 'Engagement — value chain', unit: 'Narrative', pillar: 'Governance - Climate' },
+    };
+
+    // ============================================================================
+    // DATA: PROCESS-DISCLOSURE MAPPINGS
+    // ============================================================================
+
+    const MAPPINGS = {
+      '*ALL': {
+        'GOV-1': ['D-GRI-2-23', 'D-GRI-205-1', 'D-GRI-205-2', 'D-ESRS-G1-1'],
+        'GOV-1-IN': ['D-BRSR-P1-1'],
+        'WRK-1': ['D-GRI-2-7', 'D-GRI-405-1', 'D-ESRS-S1-6', 'D-GRI-2-30', 'D-GRI-404-1', 'D-ESRS-S1-13'],
+        'WRK-1-IN': ['D-BRSR-P3-1', 'D-BRSR-P3-3'],
+        'ISSB-1': ['D-ISSB-S1-Gov', 'D-ISSB-S1-Strat', 'D-ISSB-S1-Risk', 'D-ISSB-S1-Metrics', 'D-ISSB-S2-Gov', 'D-ISSB-S2-Risk-Mgmt', 'D-ISSB-S2-Remuneration'],
+        'MAT-1': ['D-GRI-3-1', 'D-GRI-3-2', 'D-GRI-3-3'],
+      },
+      '1_Coal_Thermal': {
+        '1.1': ['D-GRI-302-1', 'D-BRSR-P6-1', 'D-ESRS-E1-5', 'D-CDP-C8', 'D-GRI-305-7'],
+        '1.2': ['D-GRI-305-1', 'D-SASB-110a-1', 'D-ISSB-S2-S1', 'D-ESRS-E1-6', 'D-BRSR-P6-4', 'D-CDP-C6', 'D-GRI-305-7', 'D-SASB-120a-1', 'D-ESRS-E2-4', 'D-BRSR-P6-3', 'D-GRI-403-9', 'D-SASB-320a-1', 'D-ESRS-S1-14', 'D-BRSR-P3-2'],
+        '1.3': ['D-GRI-302-1', 'D-GRI-302-3', 'D-ESRS-E1-5', 'D-BRSR-P6-1', 'D-CDP-C8'],
+        '1.4': ['D-GRI-EU1', 'D-GRI-EU2', 'D-CDP-C9', 'D-GRI-305-4', 'D-ISSB-S2-Intensity', 'D-BRSR-P6-4'],
+        '1.5': ['D-GRI-303-3', 'D-GRI-303-5', 'D-SASB-140a-1', 'D-ESRS-E3-4', 'D-BRSR-P6-2', 'D-GRI-303-4'],
+        '2.1': ['D-GRI-303-4', 'D-SASB-140a-2'],
+        '2.2': ['D-GRI-306-3', 'D-SASB-150a-1'],
+        '2.3': ['D-GRI-306-3', 'D-ESRS-E5-5'],
+        '3.1': ['D-GRI-305-3', 'D-ISSB-S2-S3', 'D-ESRS-E1-6', 'D-BRSR-P6-7', 'D-GRI-308-1', 'D-GRI-414-1'],
+        '3.2': ['D-GRI-306-3', 'D-GRI-306-4', 'D-GRI-306-5', 'D-SASB-150a-1', 'D-ESRS-E5-5', 'D-BRSR-P6-5'],
+        '3.3': ['D-GRI-303-1', 'D-GRI-303-3', 'D-GRI-303-4', 'D-GRI-303-5', 'D-SASB-140a-1', 'D-ESRS-E3-4', 'D-BRSR-P6-2'],
+        '3.4': ['D-GRI-306-4', 'D-ESRS-E5-4'],
+      },
+      '2_CCGT': {
+        '1.1': ['D-GRI-305-1', 'D-ISSB-S2-S1', 'D-CDP-C6'],
+        '1.2': ['D-GRI-305-1', 'D-SASB-110a-1', 'D-ISSB-S2-S1', 'D-ESRS-E1-6', 'D-BRSR-P6-4', 'D-CDP-C6', 'D-GRI-305-7', 'D-SASB-120a-1', 'D-ESRS-E2-4', 'D-BRSR-P6-3'],
+        '1.3': ['D-GRI-302-1', 'D-ESRS-E1-5', 'D-BRSR-P6-1'],
+        '1.4': ['D-GRI-303-3', 'D-SASB-140a-1', 'D-ESRS-E3-4', 'D-BRSR-P6-2'],
+        '1.5': ['D-GRI-EU1', 'D-GRI-EU2'],
+        '2.1': ['D-GRI-306-3'],
+        '3.1': ['D-GRI-305-3', 'D-ISSB-S2-S3', 'D-BRSR-P6-7', 'D-GRI-308-1'],
+        '3.2': ['D-GRI-303-3', 'D-GRI-303-4', 'D-SASB-140a-1', 'D-BRSR-P6-2'],
+        '3.4': ['D-GRI-305-1', 'D-SASB-110a-2', 'D-ISSB-S2-S1'],
+      },
+      '3_Solar_PV': {
+        '1.1': ['D-GRI-EU1', 'D-GRI-EU2', 'D-SASB-420a-2', 'D-ESRS-E1-5', 'D-BRSR-P6-1', 'D-ESRS-E5-4', 'D-GRI-308-1', 'D-GRI-414-1'],
+        '1.4': ['D-GRI-305-1'],
+        '2.1': ['D-GRI-304-1', 'D-GRI-304-2', 'D-ESRS-E4-5', 'D-BRSR-P6-6', 'D-GRI-413-1', 'D-GRI-413-2', 'D-ESRS-S3-1', 'D-BRSR-P8-1'],
+        '2.4': ['D-GRI-304-3'],
+        '3.1': ['D-GRI-303-3', 'D-BRSR-P6-2'],
+        '3.2': ['D-GRI-306-3', 'D-ESRS-E5-5', 'D-BRSR-P6-5'],
+        '3.3': ['D-GRI-306-3', 'D-BRSR-P6-5'],
+      },
+      '4_Onshore_Wind': {
+        '1.3': ['D-GRI-EU1', 'D-GRI-EU2', 'D-SASB-420a-2', 'D-ESRS-E1-5', 'D-BRSR-P6-1'],
+        '1.4': ['D-GRI-305-1', 'D-CDP-C6'],
+        '2.2': ['D-GRI-304-2', 'D-ESRS-E4-5', 'D-BRSR-P6-6'],
+        '2.3': ['D-GRI-413-2', 'D-ESRS-S3-3'],
+        '3.1': ['D-GRI-306-3', 'D-ESRS-E5-5', 'D-BRSR-P6-5'],
+        '3.2': ['D-GRI-306-3'],
+        '3.4': ['D-GRI-305-1', 'D-CDP-C6'],
+      },
+      '5_Hydro_Large': {
+        '1.1': ['D-GRI-303-3', 'D-GRI-303-5', 'D-ESRS-E3-4'],
+        '1.4': ['D-GRI-EU1', 'D-GRI-EU2', 'D-SASB-420a-2', 'D-BRSR-P6-1'],
+        '2.1': ['D-GRI-304-2', 'D-ESRS-E4-5'],
+        '2.2': ['D-GRI-304-3'],
+        '2.4': ['D-GRI-305-1', 'D-ISSB-S2-S1', 'D-CDP-C6'],
+        '3.2': ['D-GRI-413-1', 'D-GRI-413-2', 'D-ESRS-S3-1', 'D-ESRS-S3-3', 'D-BRSR-P8-1'],
+        '3.3': ['D-GRI-403-9'],
+      },
+      '6_Nuclear': {
+        '1.4': ['D-GRI-EU1', 'D-GRI-EU2', 'D-GRI-305-1', 'D-CDP-C6'],
+        '1.5': ['D-GRI-303-3', 'D-GRI-303-4', 'D-SASB-140a-1', 'D-ESRS-E3-4', 'D-BRSR-P6-2'],
+        '2.1': ['D-SASB-540a-2'],
+        '2.4': ['D-GRI-403-9', 'D-ESRS-S1-14'],
+        '3.1': ['D-GRI-306-3'],
+        '3.2': ['D-GRI-306-5'],
+      },
+      '7_BESS': {
+        '1.1': ['D-GRI-305-2', 'D-ISSB-S2-S2'],
+        '2.1': ['D-GRI-403-9'],
+        '2.2': ['D-ESRS-S1-14'],
+        '2.4': ['D-SASB-550a-2'],
+        '3.1': ['D-GRI-308-1', 'D-GRI-414-1', 'D-ESRS-S2-1', 'D-ESRS-E5-4'],
+        '3.3': ['D-GRI-306-3', 'D-ESRS-E5-5', 'D-BRSR-P6-5'],
+      },
+      '8_Transmission': {
+        '1.1': ['D-GRI-305-2', 'D-ISSB-S2-S2', 'D-GRI-EU4'],
+        '1.4': ['D-SASB-540a-1'],
+        '2.2': ['D-GRI-304-2'],
+        '2.4': ['D-GRI-304-2'],
+        '3.1': ['D-GRI-305-1', 'D-CDP-C6'],
+        '3.2': ['D-GRI-306-3'],
+        '3.3': ['D-GRI-413-2'],
+        '3.4': ['D-GRI-403-9', 'D-SASB-320a-1', 'D-ESRS-S1-14', 'D-BRSR-P3-2', 'D-GRI-2-8'],
+      },
+      '9_Distribution': {
+        '1.1': ['D-GRI-305-2'],
+        '1.2': ['D-GRI-EU28', 'D-GRI-EU29', 'D-SASB-540a-1'],
+        '1.4': ['D-GRI-305-2'],
+        '2.2': ['D-SASB-240a-1', 'D-SASB-240a-2'],
+        '2.3': ['D-SASB-240a-3', 'D-SASB-240a-4', 'D-GRI-418-1', 'D-BRSR-P9-1'],
+        '2.4': ['D-ESRS-S4-1'],
+        '3.2': ['D-GRI-403-9', 'D-SASB-320a-1', 'D-BRSR-P3-2', 'D-GRI-413-2'],
+        '3.3': ['D-GRI-306-3'],
+      },
+      '10_Retail_Supply': {
+        '1.1': ['D-GRI-305-3', 'D-ISSB-S2-S3', 'D-CDP-C7'],
+        '1.2': ['D-CDP-C12', 'D-ESRS-E1-1'],
+        '2.2': ['D-SASB-240a-1', 'D-SASB-240a-2'],
+        '2.3': ['D-SASB-240a-3'],
+        '2.4': ['D-SASB-240a-4', 'D-ESRS-S4-1', 'D-BRSR-P9-1'],
+        '3.4': ['D-BRSR-P9-1', 'D-GRI-418-1'],
+      },
+      '11_Integrated': {
+        '1.4': ['D-ISSB-S2-Strat-Risk', 'D-ISSB-S2-Strat-Resilience', 'D-ESRS-E1-1', 'D-CDP-C2', 'D-CDP-C3', 'D-ISSB-S2-Targets', 'D-ESRS-E1-4', 'D-ISSB-S2-Capex', 'D-ESRS-E1-9'],
+        '2.3': ['D-GRI-EU28', 'D-GRI-EU29', 'D-SASB-540a-1'],
+        '2.4': ['D-SASB-550a-2'],
+        '3.2': ['D-SASB-240a-1'],
+        '3.4': ['D-ISSB-S1-Gov', 'D-ISSB-S1-Strat', 'D-GRI-3-1', 'D-GRI-3-2'],
+      },
+      '12_Renewable_IPP': {
+        '1.1': ['D-GRI-304-1'],
+        '1.2': ['D-GRI-413-1', 'D-ESRS-S3-1', 'D-BRSR-P8-1'],
+        '2.1': ['D-GRI-EU1', 'D-GRI-EU2', 'D-SASB-420a-2'],
+        '3.1': ['D-CDP-C12'],
+        '3.2': ['D-GRI-304-3', 'D-ESRS-E4-1'],
+        '3.3': ['D-GRI-308-1', 'D-GRI-414-1', 'D-ESRS-S2-1'],
+        '3.4': ['D-ESRS-E5-5'],
+      },
+      '13_Biomass_WtE': {
+        '1.1': ['D-GRI-308-1', 'D-GRI-414-1', 'D-ESRS-S2-1'],
+        '1.3': ['D-GRI-305-1', 'D-SASB-110a-1', 'D-ESRS-E1-6', 'D-BRSR-P6-4', 'D-CDP-C6'],
+        '2.1': ['D-GRI-305-7', 'D-SASB-120a-1', 'D-ESRS-E2-4', 'D-BRSR-P6-3'],
+        '2.2': ['D-GRI-305-7', 'D-ESRS-E2-4'],
+        '2.3': ['D-GRI-413-2'],
+        '2.4': ['D-GRI-303-4'],
+        '3.2': ['D-GRI-306-3', 'D-GRI-306-5', 'D-BRSR-P6-5'],
+        '3.4': ['D-GRI-413-1'],
+      },
+      '14_Trading': {
+        '1.1': ['D-CDP-C2'],
+        '2.3': ['D-GRI-205-1'],
+        '2.4': ['D-GRI-205-2', 'D-ESRS-G1-3'],
+        '3.2': ['D-ESRS-E1-7'],
+        '3.4': ['D-CDP-C12'],
+      },
+      '15_EV_Charging': {
+        '1.1': ['D-GRI-413-1', 'D-ESRS-S3-1'],
+        '2.1': ['D-GRI-305-2'],
+        '2.4': ['D-GRI-418-1'],
+        '3.1': ['D-CDP-C12'],
+        '3.2': ['D-GRI-306-3'],
+        '3.3': ['D-ESRS-S4-1'],
+        '3.4': ['D-GRI-418-1', 'D-SASB-550a-2'],
+      },
+    };
+
+    // ============================================================================
+    // ENGINE LOGIC
+    // ============================================================================
+
+    // ----------------------------------------------------------------------------
+    // JURISDICTION — single source of truth for every applicability decision.
+    // The profile form badges, the disclosure filter, and the Mandatory flag all
+    // read from these predicates so they can never drift apart.
+    // ----------------------------------------------------------------------------
+    const JURIS = {
+      isEU: (p) => p.geography_hq === 'EU' || (p.geography_operations || []).includes('EU'),
+      isIndiaListed: (p) => p.geography_hq === 'India' && (p.listing_status === 'Listed-Major' || p.listing_status === 'Listed-Other'),
+      // Post-Omnibus (Directive (EU) 2026/470, in force March 2026): CSRD/ESRS applies only to
+      // EU operators above ~1,000 employees and €450M turnover — the "Large" tier here. Listed
+      // SMEs were removed from scope, so "in scope" and "mandatory" now coincide. (The original
+      // ESRS remains the standard in force for FY2025/26; the simplified ESRS 2.0 applies FY2027.)
+      esrsMandatory: (p) => JURIS.isEU(p) && p.size_tier === 'Large',
+      esrsInScope: (p) => JURIS.esrsMandatory(p),
+      // EU operator below the post-Omnibus threshold — out of CSRD scope (may use voluntary VSME).
+      esrsSubThreshold: (p) => JURIS.isEU(p) && p.size_tier !== 'Large',
+      // ISSB shows for adopters and TCFD-aligned filers, and for voluntary filers past their first cycle.
+      issbInScope: (p) => p.issb_adoption !== 'Voluntary' || p.reporting_maturity !== 'First-time',
+      issbMandatory: (p) => p.issb_adoption === 'ISSB-adopting',
+    };
+
+    const isMandatory = (disclosureId, profile) => {
+      const std = DISCLOSURES[disclosureId]?.standard;
+      if (std === 'BRSR') return JURIS.isIndiaListed(profile);
+      if (std === 'ESRS') return JURIS.esrsMandatory(profile);
+      if (std === 'ISSB-S1' || std === 'ISSB-S2') return JURIS.issbMandatory(profile);
+      return false;
+    };
+
+    // ----------------------------------------------------------------------------
+    // ARCHETYPE SUGGESTION — generation mix + value-chain position pre-select the
+    // archetypes that obviously apply. These are suggestions the operator confirms
+    // or edits in stage 2; the heuristic auto-scoring from earlier builds stays off.
+    // ----------------------------------------------------------------------------
+    const FUEL_TO_ARCHETYPE = {
+      'Coal': '1_Coal_Thermal',
+      'Gas': '2_CCGT', 'Oil': '2_CCGT',
+      'Solar-PV': '3_Solar_PV', 'Solar-CSP': '3_Solar_PV',
+      'Wind-Onshore': '4_Onshore_Wind', 'Wind-Offshore': '4_Onshore_Wind',
+      'Hydro-Reservoir': '5_Hydro_Large', 'Hydro-RoR': '5_Hydro_Large', 'Hydro-Pumped': '5_Hydro_Large',
+      'Nuclear': '6_Nuclear',
+      'Storage': '7_BESS',
+      'Biomass': '13_Biomass_WtE', 'WtE': '13_Biomass_WtE',
+    };
+    const CHAIN_TO_ARCHETYPE = {
+      'Transmission': '8_Transmission',
+      'Distribution': '9_Distribution',
+      'Retail': '10_Retail_Supply',
+      'Trading': '14_Trading',
+      'Integrated': '11_Integrated',
+      'Storage': '7_BESS',
+    };
+
+    const suggestArchetypes = (profile) => {
+      const out = new Set();
+      for (const f of profile.generation_mix || []) {
+        if (FUEL_TO_ARCHETYPE[f]) out.add(FUEL_TO_ARCHETYPE[f]);
+      }
+      for (const c of profile.value_chain || []) {
+        if (CHAIN_TO_ARCHETYPE[c]) out.add(CHAIN_TO_ARCHETYPE[c]);
+      }
+      // Keep the canonical library order.
+      return Object.keys(ARCHETYPES).filter(id => out.has(id));
+    };
+
+    // Coherence check: flag fuels the operator declared but didn't pick an archetype for,
+    // and archetypes that imply a fuel/segment missing from the profile.
+    const coherenceWarnings = (profile, selectedIds) => {
+      const warnings = [];
+      const selected = new Set(selectedIds);
+      for (const f of profile.generation_mix || []) {
+        const target = FUEL_TO_ARCHETYPE[f];
+        if (target && !selected.has(target)) {
+          warnings.push(`You listed ${f} in your generation mix but didn't select "${ARCHETYPES[target].name}".`);
+        }
+      }
+      const needsGen = (profile.value_chain || []).some(v => v === 'Generation' || v === 'Integrated');
+      if (needsGen && !selectedIds.some(id => ARCHETYPES[id]?.tags?.value_chain?.includes('Generation'))) {
+        warnings.push('Your profile includes generation, but none of the selected archetypes is a generation technology.');
+      }
+      return warnings;
+    };
+
+    const stitchArchitecture = (selectedIds) => {
+      const rows = [];
+      const seen = new Set();
+      for (const id of selectedIds) {
+        const archetype = ARCHETYPES[id];
+        if (!archetype) continue;
+        for (const row of archetype.rows) {
+          const key = `${id}|${row.sub_id}`;
+          if (!seen.has(key)) {
+            rows.push({ ...row, source_archetype: id, archetype_name: archetype.name, row_id: key });
+            seen.add(key);
+          }
+        }
+      }
+      return rows;
+    };
+
+    const filterApplies = (disclosureId, profile) => {
+      const std = DISCLOSURES[disclosureId]?.standard;
+      if (std === 'BRSR') return JURIS.isIndiaListed(profile);
+      if (std === 'ESRS') return JURIS.esrsInScope(profile);
+      if (std === 'ISSB-S1' || std === 'ISSB-S2') return JURIS.issbInScope(profile);
+      return true;
+    };
+
+    const mapDisclosures = (architecture, profile) => {
+      const hits = [];
+      const seenKeys = new Set();
+
+      for (const row of architecture) {
+        const archetypeMaps = MAPPINGS[row.source_archetype] || {};
+        const subMaps = archetypeMaps[row.sub_id] || [];
+        // Nearest preceding process header (rows are ordered; the header is the row
+        // with a process_id whose sub_id is the greatest one <= this row's sub_id).
+        const procCandidates = (ARCHETYPES[row.source_archetype]?.rows || [])
+          .filter(r => r.process_id !== null && parseFloat(r.sub_id) <= parseFloat(row.sub_id));
+        const fallbackProcess = procCandidates.length ? procCandidates[procCandidates.length - 1].process_name : row.phase;
+        for (const did of subMaps) {
+          if (!filterApplies(did, profile)) continue;
+          const disc = DISCLOSURES[did];
+          if (!disc) continue;
+          const key = `${row.row_id}|${did}`;
+          if (seenKeys.has(key)) continue;
+          seenKeys.add(key);
+          hits.push({
+            process_name: row.process_name || fallbackProcess,
+            sub_id: row.sub_id,
+            phase: row.phase,
+            archetype: row.archetype_name,
+            archetype_id: row.source_archetype,
+            disclosure_id: did,
+            standard: disc.standard,
+            code: disc.code,
+            name: disc.name,
+            unit: disc.unit,
+            pillar: disc.pillar,
+            mandatory: isMandatory(did, profile),
+            source: 'knowledge_graph',
+          });
+        }
+      }
+
+      const universal = MAPPINGS['*ALL'] || {};
+      for (const [bucket, dids] of Object.entries(universal)) {
+        if (bucket.endsWith('-IN') && profile.geography_hq !== 'India') continue;
+        for (const did of dids) {
+          if (!filterApplies(did, profile)) continue;
+          const disc = DISCLOSURES[did];
+          if (!disc) continue;
+          const key = `*ALL|${bucket}|${did}`;
+          if (seenKeys.has(key)) continue;
+          seenKeys.add(key);
+          const bucketLabel = {
+            'GOV-1': 'Governance Baseline',
+            'GOV-1-IN': 'Governance Baseline',
+            'WRK-1': 'Workforce Baseline',
+            'WRK-1-IN': 'Workforce Baseline',
+            'ISSB-1': 'ISSB Baseline',
+            'MAT-1': 'Materiality',
+          }[bucket] || bucket;
+          hits.push({
+            process_name: 'Cross-cutting',
+            sub_id: '—',
+            phase: bucketLabel,
+            archetype: 'Universal',
+            archetype_id: '*ALL',
+            disclosure_id: did,
+            standard: disc.standard,
+            code: disc.code,
+            name: disc.name,
+            unit: disc.unit,
+            pillar: disc.pillar,
+            mandatory: isMandatory(did, profile),
+            source: 'knowledge_graph',
+          });
+        }
+      }
+
+      return hits;
+    };
+
+    const downloadExcel = (state) => {
+      const profile = state.profile;
+      const allHits = state.hits;
+      const wb = XLSX.utils.book_new();
+
+      const profileRows = [
+        ['Field', 'Value'],
+        ['Company Name', profile.company_name || ''],
+        ['Value Chain', (profile.value_chain || []).join('; ')],
+        ['Generation Mix', (profile.generation_mix || []).join('; ')],
+        ['HQ Geography', profile.geography_hq || ''],
+        ['Operating Geographies', (profile.geography_operations || []).join('; ')],
+        ['Listing Status', profile.listing_status || ''],
+        ['Size Tier', profile.size_tier || ''],
+        ['ISSB Adoption', profile.issb_adoption || ''],
+        ['Reporting Maturity', profile.reporting_maturity || ''],
+        ['', ''],
+        ['About Us (excerpt)', (profile.about_us_text || '').slice(0, 500)],
+        ['', ''],
+        ['Generated', new Date().toISOString()],
+        ['Library Version', 'v5'],
+        ['Knowledge Graph Version', 'v5'],
+      ];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(profileRows), 'Company Profile');
+
+      const archRows = [['Archetype', 'Process ID', 'Process Name', 'Sub-Process ID', 'Sub-Process Phase', 'Action Verbs']];
+      for (const row of state.architecture) {
+        archRows.push([row.archetype_name, row.process_id || '', row.process_name || '', row.sub_id, row.phase, row.verbs]);
+      }
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(archRows), 'Process Architecture');
+
+      const mapRows = [['Process', 'Sub-Process Phase', 'Sub-ID', 'Archetype', 'Standard', 'Code', 'Indicator', 'Unit', 'Pillar', 'Mandatory', 'Data Owner', 'Status']];
+      for (const hit of allHits) {
+        mapRows.push([hit.process_name, hit.phase, hit.sub_id, hit.archetype, hit.standard, hit.code, hit.name, hit.unit, hit.pillar, hit.mandatory ? 'Mandatory' : 'Voluntary', '', 'Not Started']);
+      }
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(mapRows), 'Disclosure Map');
+
+      const standards = [...new Set(allHits.map(h => h.standard))];
+      for (const std of standards) {
+        const stdHits = allHits.filter(h => h.standard === std);
+        const stdRows = [['Code', 'Indicator', 'Unit', 'Pillar', 'Process', 'Sub-Process', 'Mandatory']];
+        for (const hit of stdHits) {
+          stdRows.push([hit.code, hit.name, hit.unit, hit.pillar, hit.process_name, hit.phase, hit.mandatory ? 'Yes' : 'No']);
+        }
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(stdRows), `Std_${std}`.slice(0, 31));
+      }
+
+      const overlapMap = new Map();
+      for (const hit of allHits) {
+        const key = `${hit.pillar}|${hit.name}`;
+        if (!overlapMap.has(key)) overlapMap.set(key, { pillar: hit.pillar, dataPoint: hit.name, unit: hit.unit, standards: new Set(), codes: [] });
+        const e = overlapMap.get(key);
+        e.standards.add(hit.standard);
+        e.codes.push(`${hit.standard}:${hit.code}`);
+      }
+      const overlapRows = [['Pillar', 'Data Point', 'Unit', '# Standards', 'Standards Covered', 'All Codes']];
+      for (const e of [...overlapMap.values()].sort((a, b) => b.standards.size - a.standards.size)) {
+        overlapRows.push([e.pillar, e.dataPoint, e.unit, e.standards.size, [...e.standards].join(', '), e.codes.join('; ')]);
+      }
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(overlapRows), 'Overlap & Gaps');
+
+      const uniquePoints = new Map();
+      for (const hit of allHits) {
+        const key = `${hit.name}|${hit.unit}`;
+        if (!uniquePoints.has(key)) uniquePoints.set(key, { name: hit.name, unit: hit.unit, standards: new Set() });
+        uniquePoints.get(key).standards.add(hit.standard);
+      }
+      const dcpRows = [['Data Point', 'Unit', '# Standards Satisfied', 'Standards', 'Data Owner', 'Frequency', 'Source System', 'Assurance Level', 'Notes']];
+      for (const p of [...uniquePoints.values()].sort((a, b) => b.standards.size - a.standards.size)) {
+        dcpRows.push([p.name, p.unit, p.standards.size, [...p.standards].join(', '), '', '', '', '', '']);
+      }
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dcpRows), 'Data Collection Plan');
+
+      XLSX.writeFile(wb, `ESG_Disclosures_${(profile.company_name || 'Company').replace(/[^a-z0-9]/gi, '_')}.xlsx`);
+    };
+
+    // ============================================================================
+    // UI COMPONENTS
+    // ============================================================================
+
+    const VOCAB = {
+      value_chain: ['Generation', 'Transmission', 'Distribution', 'Retail', 'Trading', 'Integrated', 'Storage'],
+      generation_mix: ['Coal', 'Gas', 'Oil', 'Nuclear', 'Hydro-Reservoir', 'Hydro-RoR', 'Hydro-Pumped', 'Solar-PV', 'Solar-CSP', 'Wind-Onshore', 'Wind-Offshore', 'Biomass', 'WtE', 'Geothermal', 'Storage'],
+      geography: ['EU', 'India', 'US', 'UK', 'Japan', 'Singapore', 'Other-Asia', 'Other-Americas', 'MENA', 'SSA'],
+      listing_status: ['Listed-Major', 'Listed-Other', 'Private', 'PSU-State', 'Subsidiary'],
+      size_tier: ['Large', 'Medium', 'SME-Listed', 'SME-Private'],
+      issb_adoption: ['ISSB-adopting', 'TCFD-aligned', 'Voluntary'],
+      reporting_maturity: ['First-time', 'Established', 'Leadership'],
+    };
+
+    // ----------------------------------------------------------------------------
+    // PROFILE EXTRACTION FROM FREE TEXT
+    // Primary path: a single Claude call returns a profile constrained to the VOCAB
+    // enums. This runs live inside Claude; in a self-hosted copy the call is blocked,
+    // so we fall back to deterministic keyword detection. Both feed applyExtracted,
+    // and the engine stays deterministic — extraction only pre-fills the form.
+    // ----------------------------------------------------------------------------
+    const localExtract = (text) => {
+      const t = (text || '').toLowerCase();
+      const has = (...words) => words.some(w => t.includes(w));
+      const out = {};
+      const vc = [];
+      if (has('generat', 'power plant', 'power station')) vc.push('Generation');
+      if (has('transmission', 'grid operator', 'high-voltage', 'high voltage')) vc.push('Transmission');
+      if (has('distribution', 'discom', 'last mile', 'last-mile')) vc.push('Distribution');
+      if (has('retail', 'supply electricity', 'electricity supplier', 'energy supplier')) vc.push('Retail');
+      if (has('trading', 'wholesale market', 'power trading')) vc.push('Trading');
+      if (has('integrated utility', 'vertically integrated')) vc.push('Integrated');
+      if (has('battery storage', 'energy storage', 'bess')) vc.push('Storage');
+      if (vc.length) out.value_chain = [...new Set(vc)];
+
+      const gm = [];
+      if (has('coal', 'lignite', 'thermal')) gm.push('Coal');
+      if (has('gas', 'ccgt', 'combined cycle', 'lng')) gm.push('Gas');
+      if (has('oil', 'diesel')) gm.push('Oil');
+      if (has('nuclear')) gm.push('Nuclear');
+      if (has('reservoir hydro', 'large hydro', 'dam')) gm.push('Hydro-Reservoir');
+      if (has('run-of-river', 'run of river')) gm.push('Hydro-RoR');
+      if (has('pumped hydro', 'pumped storage')) gm.push('Hydro-Pumped');
+      else if (has('hydro', 'hydroelectric')) gm.push('Hydro-Reservoir');
+      if (has('solar pv', 'photovoltaic', 'solar')) gm.push('Solar-PV');
+      if (has('concentrated solar', 'csp')) gm.push('Solar-CSP');
+      if (has('offshore wind')) gm.push('Wind-Offshore');
+      if (has('onshore wind') || (has('wind') && !has('offshore wind'))) gm.push('Wind-Onshore');
+      if (has('biomass', 'bagasse', 'agri-residue')) gm.push('Biomass');
+      if (has('waste-to-energy', 'waste to energy', 'municipal waste')) gm.push('WtE');
+      if (has('geothermal')) gm.push('Geothermal');
+      if (gm.length) out.generation_mix = [...new Set(gm)];
+
+      const geo = [];
+      if (has('india', 'indian')) geo.push('India');
+      if (has('european union', ' eu ', 'germany', 'france', 'spain', 'italy', 'netherlands', 'poland')) geo.push('EU');
+      if (has('united states', ' u.s', ' usa', 'america')) geo.push('US');
+      if (has('united kingdom', ' uk ', 'britain', 'england')) geo.push('UK');
+      if (has('japan')) geo.push('Japan');
+      if (has('singapore')) geo.push('Singapore');
+      if (geo.length) { out.geography_hq = geo[0]; out.geography_operations = [...new Set(geo)]; }
+
+      if (has('listed on', 'publicly traded', 'stock exchange', 'nse', 'bse', 'nyse', 'lse')) out.listing_status = 'Listed-Major';
+      else if (has('state-owned', 'public sector', 'psu', 'government-owned')) out.listing_status = 'PSU-State';
+      else if (has('subsidiary', 'wholly owned')) out.listing_status = 'Subsidiary';
+      else if (has('privately held', 'private company')) out.listing_status = 'Private';
+
+      if (has('largest', 'multinational', 'fortune', 'gw of', 'gigawatt')) out.size_tier = 'Large';
+
+      if (has('issb', 'ifrs s1', 'ifrs s2')) out.issb_adoption = 'ISSB-adopting';
+      else if (has('tcfd')) out.issb_adoption = 'TCFD-aligned';
+      return out;
+    };
+
+    const aiExtract = async (text) => {
+      const allowed = JSON.stringify({
+        value_chain: VOCAB.value_chain, generation_mix: VOCAB.generation_mix,
+        geography: VOCAB.geography, listing_status: VOCAB.listing_status,
+        size_tier: VOCAB.size_tier, issb_adoption: VOCAB.issb_adoption,
+      });
+      const prompt = `You are scoping a utility company's ESG reporting profile. Read the company description below and return ONLY a JSON object (no prose, no markdown fences) with these keys, choosing values strictly from the allowed enums:
+
+{
+  "value_chain": [subset of value_chain],
+  "generation_mix": [subset of generation_mix, only if it operates generation],
+  "geography_hq": one value from geography (best guess for headquarters),
+  "geography_operations": [subset of geography],
+  "listing_status": one value from listing_status,
+  "size_tier": one value from size_tier,
+  "issb_adoption": one value from issb_adoption,
+  "rationale": one short sentence
+}
+
+Omit any key you cannot infer. Allowed enums: ${allowed}
+
+Company description:
+"""${text.slice(0, 6000)}"""`;
+
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1000,
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      });
+      if (!res.ok) throw new Error('api ' + res.status);
+      const data = await res.json();
+      const raw = (data.content || []).map(b => b.type === 'text' ? b.text : '').join('').trim();
+      const clean = raw.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(clean);
+      // Keep only values that are inside the allowed vocab.
+      const inVocab = (v, list) => list.includes(v);
+      const out = {};
+      if (Array.isArray(parsed.value_chain)) out.value_chain = parsed.value_chain.filter(v => inVocab(v, VOCAB.value_chain));
+      if (Array.isArray(parsed.generation_mix)) out.generation_mix = parsed.generation_mix.filter(v => inVocab(v, VOCAB.generation_mix));
+      if (inVocab(parsed.geography_hq, VOCAB.geography)) out.geography_hq = parsed.geography_hq;
+      if (Array.isArray(parsed.geography_operations)) out.geography_operations = parsed.geography_operations.filter(v => inVocab(v, VOCAB.geography));
+      if (inVocab(parsed.listing_status, VOCAB.listing_status)) out.listing_status = parsed.listing_status;
+      if (inVocab(parsed.size_tier, VOCAB.size_tier)) out.size_tier = parsed.size_tier;
+      if (inVocab(parsed.issb_adoption, VOCAB.issb_adoption)) out.issb_adoption = parsed.issb_adoption;
+      out.__rationale = typeof parsed.rationale === 'string' ? parsed.rationale : '';
+      return out;
+    };
+
+    function ChipGroup({ value, onChange, options, multi = false }) {
+      const isActive = (opt) => multi ? (value || []).includes(opt) : value === opt;
+      const toggle = (opt) => {
+        if (multi) {
+          const cur = value || [];
+          onChange(cur.includes(opt) ? cur.filter(v => v !== opt) : [...cur, opt]);
+        } else {
+          onChange(opt);
+        }
+      };
+      return (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {options.map(opt => (
+            <button key={opt} type="button" className={`chip ${isActive(opt) ? 'active' : ''}`} onClick={() => toggle(opt)}>
+              {opt}
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    function FieldLabel({ children, required, hint }) {
+      return (
+        <div style={{ marginBottom: 8 }}>
+          <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-2)', letterSpacing: '0.01em' }}>
+            {children}
+            {required && <span style={{ color: 'var(--signal)', marginLeft: 4 }}>*</span>}
+          </label>
+          {hint && <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 4, lineHeight: 1.5 }}>{hint}</div>}
+        </div>
+      );
+    }
+
+    const STAGES = [
+      { id: 1, label: 'Profile' },
+      { id: 2, label: 'Archetypes' },
+      { id: 3, label: 'Architecture' },
+      { id: 4, label: 'Disclosures' },
+    ];
+
+    function StageIndicator({ current, onJump }) {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 0, padding: '24px 0' }}>
+          {STAGES.map((s, idx) => {
+            const isActive = s.id === current;
+            const isComplete = s.id < current;
+            const clickable = isComplete && onJump;
+            return (
+              <Fragment key={s.id}>
+                <div
+                  onClick={clickable ? () => onJump(s.id) : undefined}
+                  title={clickable ? `Back to ${s.label}` : undefined}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: clickable ? 'pointer' : 'default' }}
+                >
+                  <div className="stage-dot" style={{
+                    width: 28, height: 28, borderRadius: '50%',
+                    border: `1px solid ${isActive || isComplete ? 'var(--ink)' : 'var(--line-2)'}`,
+                    background: isActive ? 'var(--ink)' : (isComplete ? 'var(--ink)' : 'var(--bg)'),
+                    color: isActive || isComplete ? 'var(--bg)' : 'var(--ink-4)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 12, fontWeight: 600,
+                  }}>
+                    {isComplete ? '✓' : s.id}
+                  </div>
+                  <span style={{
+                    fontSize: 13, fontWeight: 500,
+                    color: isActive ? 'var(--ink)' : (isComplete ? 'var(--ink-2)' : 'var(--ink-4)'),
+                    letterSpacing: '0.01em',
+                    textDecoration: clickable ? 'underline' : 'none',
+                    textDecorationColor: 'var(--line-2)',
+                    textUnderlineOffset: 3,
+                  }}>{s.label}</span>
+                </div>
+                {idx < STAGES.length - 1 && (
+                  <div style={{ flex: 1, height: 1, background: isComplete ? 'var(--ink)' : 'var(--line-2)', margin: '0 16px', minWidth: 24 }} />
+                )}
+              </Fragment>
+            );
+          })}
+        </div>
+      );
+    }
+
+    function ApplicabilityBadge({ status, children }) {
+      return (
+        <div style={{
+          padding: '10px 14px',
+          background: status === 'active' ? 'var(--signal-soft)' : 'var(--bg)',
+          border: `1px solid ${status === 'active' ? '#e8c0d4' : 'var(--line)'}`,
+          borderRadius: 2,
+          fontSize: 13,
+          color: status === 'active' ? 'var(--signal)' : 'var(--ink-2)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          fontWeight: 500,
+        }}>
+          {status === 'active' ? <CheckCircle size={14} /> : <Info size={14} />}
+          {children}
+        </div>
+      );
+    }
+
+    function ProfileForm({ profile, updateProfile, applyExtracted, showGenMix, onNext, error }) {
+      const [aiState, setAiState] = useState('idle'); // idle | running | done | fallback | error
+      const [aiNote, setAiNote] = useState('');
+      const strict = profile.data_collection_mode === 'Strict';
+
+      const analyze = async () => {
+        const text = (profile.about_us_text || '').trim();
+        if (text.length < 40) { setAiState('error'); setAiNote('Paste a longer description — at least a couple of sentences — so there\'s something to read.'); return; }
+        setAiState('running'); setAiNote('');
+        try {
+          const extracted = await aiExtract(text);
+          const rationale = extracted.__rationale; delete extracted.__rationale;
+          applyExtracted(extracted);
+          setAiState('done');
+          setAiNote(rationale ? `Pre-filled from your description: ${rationale} Review the fields below before continuing.` : 'Pre-filled the fields below from your description. Review them before continuing.');
+        } catch (e) {
+          // Off-platform (self-hosted) or call blocked — fall back to local keyword detection.
+          const local = localExtract(text);
+          if (Object.keys(local).length) {
+            applyExtracted(local);
+            setAiState('fallback');
+            setAiNote('The live model isn\'t reachable in this copy, so I pre-filled what I could detect by keyword. Review and correct the fields below.');
+          } else {
+            setAiState('error');
+            setAiNote('Couldn\'t reach the model and found no recognisable terms to detect locally. Fill the fields in by hand.');
+          }
+        }
+      };
+
+      return (
+        <div className="fade-in">
+          <div style={{ marginBottom: 40 }}>
+            <h1 className="display-font hero-h1" style={{ fontSize: 44, fontWeight: 400, lineHeight: 1.1, marginBottom: 12, color: 'var(--ink)' }}>
+              Tell us about <span style={{ color: 'var(--accent)', fontWeight: 500 }}>your operations</span>.
+            </h1>
+            <p style={{ fontSize: 16, color: 'var(--ink-3)', maxWidth: 680, lineHeight: 1.6 }}>
+              Describe your business and we'll scope which ESG disclosures apply across GRI, SASB, ISSB, ESRS, BRSR, and CDP.
+            </p>
+          </div>
+
+          <div className="profile-grid">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+              <div>
+                <FieldLabel hint="Quick keeps it to the eight essentials. Strict adds a business description (with AI pre-fill) and reporting maturity, which sharpen the result.">Profile depth</FieldLabel>
+                <ChipGroup value={profile.data_collection_mode} onChange={v => updateProfile('data_collection_mode', v)} options={['Quick', 'Strict']} />
+              </div>
+
+              <div>
+                <FieldLabel required>Company name</FieldLabel>
+                <input className="field-input" value={profile.company_name} onChange={e => updateProfile('company_name', e.target.value)} placeholder="e.g. NTPC Limited" />
+              </div>
+
+              {strict && (
+                <div className="fade-in">
+                  <FieldLabel hint="Paste an About Us page or annual-report intro, then let Claude read it and pre-fill the fields below.">Business description</FieldLabel>
+                  <textarea className="field-input" rows={5} value={profile.about_us_text} onChange={e => updateProfile('about_us_text', e.target.value)} placeholder="Paste your About Us page, annual report introduction, or similar..." />
+                  <div className="ai-panel">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink-2)', fontWeight: 500 }}>
+                        <Sparkles size={15} color="var(--accent)" /> Read it with Claude
+                      </div>
+                      <button className="btn-secondary" style={{ padding: '8px 16px' }} onClick={analyze} disabled={aiState === 'running'}>
+                        {aiState === 'running' ? <Fragment><span className="ai-spin" /> Reading…</Fragment> : <Fragment>Analyse &amp; pre-fill <ChevronRight size={14} /></Fragment>}
+                      </button>
+                    </div>
+                    {aiNote && (
+                      <div className="ai-note" style={{ marginTop: 10, color: aiState === 'error' ? 'var(--signal)' : 'var(--ink-3)' }}>
+                        {aiState === 'done' && <CheckCircle size={13} style={{ verticalAlign: '-2px', marginRight: 5, color: 'var(--accent)' }} />}
+                        {aiNote}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <FieldLabel required hint="What parts of the electricity value chain do you operate in?">Value chain position</FieldLabel>
+                <ChipGroup multi value={profile.value_chain} onChange={v => updateProfile('value_chain', v)} options={VOCAB.value_chain} />
+              </div>
+
+              {showGenMix && (
+                <div className="fade-in">
+                  <FieldLabel required>Generation mix</FieldLabel>
+                  <ChipGroup multi value={profile.generation_mix} onChange={v => updateProfile('generation_mix', v)} options={VOCAB.generation_mix} />
+                </div>
+              )}
+
+              <div>
+                <FieldLabel required>HQ geography</FieldLabel>
+                <ChipGroup value={profile.geography_hq} onChange={v => updateProfile('geography_hq', v)} options={VOCAB.geography} />
+              </div>
+
+              <div>
+                <FieldLabel required hint="Drives extraterritorial reporting obligations like CSRD for EU operations.">Operating geographies</FieldLabel>
+                <ChipGroup multi value={profile.geography_operations} onChange={v => updateProfile('geography_operations', v)} options={VOCAB.geography} />
+              </div>
+
+              <div>
+                <FieldLabel required>Listing status</FieldLabel>
+                <ChipGroup value={profile.listing_status} onChange={v => updateProfile('listing_status', v)} options={VOCAB.listing_status} />
+              </div>
+
+              <div>
+                <FieldLabel required hint="Drives CSRD/ESRS scope. Post-Omnibus (in force March 2026), only Large entities — roughly 1,000+ employees and €450M+ turnover — are in scope; listed SMEs were removed.">Size tier</FieldLabel>
+                <ChipGroup value={profile.size_tier} onChange={v => updateProfile('size_tier', v)} options={VOCAB.size_tier} />
+              </div>
+
+              <div>
+                <FieldLabel hint="ISSB (IFRS S1/S2) is the rising global baseline — 28 jurisdictions adopting as of 2026. TCFD was disbanded in 2023 and its monitoring handed to the ISSB; 'TCFD-aligned' regimes persist transitionally.">Climate disclosure regime</FieldLabel>
+                <ChipGroup value={profile.issb_adoption} onChange={v => updateProfile('issb_adoption', v)} options={VOCAB.issb_adoption} />
+              </div>
+
+              {strict && (
+                <div className="fade-in">
+                  <FieldLabel hint="First-time filers see a lighter ISSB baseline; established and leadership filers see the full set.">Reporting maturity</FieldLabel>
+                  <ChipGroup value={profile.reporting_maturity} onChange={v => updateProfile('reporting_maturity', v)} options={VOCAB.reporting_maturity} />
+                </div>
+              )}
+
+              {error && (
+                <div style={{ padding: 14, background: 'var(--signal-soft)', borderLeft: '3px solid var(--signal)', color: 'var(--signal)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <AlertCircle size={16} /> {error}
+                </div>
+              )}
+
+              <div style={{ paddingTop: 12 }}>
+                <button className="btn-primary" onClick={onNext}>
+                  Continue to archetypes <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+
+            <aside style={{ position: 'sticky', top: 24 }}>
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--line)', padding: 28, borderRadius: 4 }}>
+                <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-4)', fontWeight: 600, marginBottom: 16 }}>
+                  Live applicability
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {JURIS.isIndiaListed(profile) && (
+                    <ApplicabilityBadge status="active">BRSR Core likely applies</ApplicabilityBadge>
+                  )}
+                  {JURIS.esrsMandatory(profile) && (
+                    <ApplicabilityBadge status="active">CSRD / ESRS applies (above post-Omnibus threshold)</ApplicabilityBadge>
+                  )}
+                  {JURIS.esrsSubThreshold(profile) && (
+                    <ApplicabilityBadge status="info">Below the post-Omnibus CSRD threshold — ESRS not mandatory</ApplicabilityBadge>
+                  )}
+                  {JURIS.issbMandatory(profile) && (
+                    <ApplicabilityBadge status="active">ISSB S1 + S2 likely apply</ApplicabilityBadge>
+                  )}
+                  {!JURIS.issbMandatory(profile) && JURIS.issbInScope(profile) && (
+                    <ApplicabilityBadge status="info">ISSB baseline included (voluntary)</ApplicabilityBadge>
+                  )}
+                  {profile.value_chain?.length > 0 && (
+                    <ApplicabilityBadge status="info">GRI Universal + Topic standards apply</ApplicabilityBadge>
+                  )}
+                  {profile.value_chain?.length > 0 && (
+                    <ApplicabilityBadge status="info">SASB Electric Utilities standard available</ApplicabilityBadge>
+                  )}
+                  {profile.value_chain?.length === 0 && (
+                    <div style={{ fontSize: 13, color: 'var(--ink-4)', lineHeight: 1.5 }}>
+                      Complete the form to see which frameworks apply to you.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ marginTop: 24, padding: 24, background: 'var(--bg)', border: '1px dashed var(--line-2)', borderRadius: 4 }}>
+                <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-4)', fontWeight: 600, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Info size={12} /> About this tool
+                </div>
+                <p style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.7, margin: 0 }}>
+                  Materiality Map draws on a curated knowledge graph of <strong style={{ color: 'var(--ink)' }}>{Object.keys(DISCLOSURES).length} disclosures</strong> across {new Set(Object.values(DISCLOSURES).map(d => d.standard)).size} standards. Recommendations are deterministic and traceable.
+                </p>
+              </div>
+            </aside>
+          </div>
+        </div>
+      );
+    }
+
+    function ArchetypeSelection({ selected, setSelected, profile, onBack, onNext }) {
+      const toggle = (id) => setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
+      const suggested = useMemo(() => new Set(suggestArchetypes(profile || {})), [profile]);
+      const warnings = useMemo(() => coherenceWarnings(profile || {}, selected), [profile, selected]);
+
+      return (
+        <div className="fade-in">
+          <div style={{ marginBottom: 32 }}>
+            <h1 className="display-font hero-h1" style={{ fontSize: 38, fontWeight: 400, lineHeight: 1.15, marginBottom: 8, color: 'var(--ink)' }}>
+              Select your <span style={{ color: 'var(--accent)', fontWeight: 500 }}>archetypes</span>
+            </h1>
+            <p style={{ fontSize: 15, color: 'var(--ink-3)', maxWidth: 720, lineHeight: 1.6 }}>
+              {suggested.size > 0
+                ? <Fragment>We've pre-selected the archetypes your profile implies — the ones marked <span style={{ color: 'var(--accent)', fontWeight: 600 }}>Suggested</span> below. Confirm them, add any we missed, or remove what doesn't fit.</Fragment>
+                : 'Choose the utility archetypes that describe your operations. Select one or more to scope the disclosures that follow.'}
+            </p>
+          </div>
+
+          <div className="archetype-grid">
+            {Object.entries(ARCHETYPES).map(([id, archetype]) => {
+              const isSelected = selected.includes(id);
+              const isSuggested = suggested.has(id);
+              return (
+                <div
+                  key={id}
+                  onClick={() => toggle(id)}
+                  style={{
+                    padding: 24,
+                    background: isSelected ? '#f3edfa' : 'var(--bg-card)',
+                    border: `1px solid ${isSelected ? 'var(--ink)' : 'var(--line)'}`,
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                    position: 'relative',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div className="mono" style={{ fontSize: 11, color: 'var(--ink-4)' }}>{id}</div>
+                      {isSuggested && (
+                        <span className="badge" style={{ background: '#ebe4f5', color: 'var(--accent)' }}>Suggested</span>
+                      )}
+                    </div>
+                    <div style={{
+                      width: 18, height: 18, borderRadius: '50%',
+                      border: `1.5px solid ${isSelected ? 'var(--ink)' : 'var(--line-2)'}`,
+                      background: isSelected ? 'var(--ink)' : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: 'var(--bg)', fontSize: 11,
+                    }}>{isSelected && '✓'}</div>
+                  </div>
+                  <h3 className="display-font" style={{ fontSize: 19, fontWeight: 500, color: 'var(--ink)', marginBottom: 8, lineHeight: 1.25 }}>
+                    {archetype.name}
+                  </h3>
+                  <p style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.55, marginBottom: 0 }}>
+                    {archetype.description}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          {warnings.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
+              {warnings.map((w, i) => (
+                <div key={i} className="warn-row">
+                  <AlertCircle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+                  <span>{w}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <button className="btn-secondary" onClick={onBack}><ChevronLeft size={16} /> Back</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>{selected.length} selected</span>
+              <button className="btn-primary" onClick={onNext} disabled={!selected.length}>
+                Build process architecture <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function ArchitectureEditor({ architecture, setArchitecture, onBack, onNext }) {
+      const [editingRow, setEditingRow] = useState(null);
+
+      const removeRow = (rowId) => setArchitecture(a => a.filter(r => r.row_id !== rowId));
+      const updateRowVerbs = (rowId, verbs) => setArchitecture(a => a.map(r => r.row_id === rowId ? { ...r, verbs } : r));
+
+      const grouped = useMemo(() => {
+        const out = [];
+        let lastArchetype = null;
+        let lastProcessHeader = null;
+        for (const row of architecture) {
+          if (row.source_archetype !== lastArchetype) {
+            out.push({ type: 'archetype', name: row.archetype_name, id: row.source_archetype });
+            lastArchetype = row.source_archetype;
+            lastProcessHeader = null;
+          }
+          if (row.process_id !== null && row.process_name !== lastProcessHeader) {
+            out.push({ type: 'process', name: row.process_name, id: `${row.source_archetype}-${row.process_id}` });
+            lastProcessHeader = row.process_name;
+          }
+          out.push({ type: 'row', row });
+        }
+        return out;
+      }, [architecture]);
+
+      return (
+        <div className="fade-in">
+          <div style={{ marginBottom: 32 }}>
+            <h1 className="display-font" style={{ fontSize: 38, fontWeight: 400, lineHeight: 1.15, marginBottom: 8, color: 'var(--ink)' }}>
+              Your stitched <span style={{ color: 'var(--accent)', fontWeight: 500 }}>process architecture</span>
+            </h1>
+            <p style={{ fontSize: 15, color: 'var(--ink-3)', maxWidth: 720, lineHeight: 1.6 }}>
+              This is your operational map — the basis for every disclosure recommendation that follows.
+              Edit action verbs or remove rows that don't apply to your business before continuing.
+            </p>
+          </div>
+
+          <div className="scrollarea" style={{ marginBottom: 32 }}>
+            {grouped.map((item, idx) => {
+              if (item.type === 'archetype') {
+                return (
+                  <div key={`a-${item.id}-${idx}`} style={{ background: 'var(--ink)', color: 'var(--bg)', padding: '12px 18px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <Layers size={14} />
+                    <span className="display-font" style={{ fontSize: 16, fontWeight: 500 }}>{item.name}</span>
+                    <span className="mono" style={{ fontSize: 11, color: 'var(--ink-4)', marginLeft: 8 }}>{item.id}</span>
+                  </div>
+                );
+              }
+              if (item.type === 'process') {
+                return (
+                  <div key={`p-${item.id}-${idx}`} className="arc-process-header">
+                    {item.name}
+                  </div>
+                );
+              }
+              const row = item.row;
+              const isEditing = editingRow === row.row_id;
+              return (
+                <div key={row.row_id} className="arc-row">
+                  <div className="mono" style={{ fontSize: 12, color: 'var(--ink-4)', minWidth: 32, paddingTop: 2 }}>{row.sub_id}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 4 }}>{row.phase}</div>
+                    {isEditing ? (
+                      <input
+                        className="field-input"
+                        style={{ fontSize: 13, padding: '8px 10px' }}
+                        value={row.verbs}
+                        onChange={e => updateRowVerbs(row.row_id, e.target.value)}
+                        onBlur={() => setEditingRow(null)}
+                        onKeyDown={e => { if (e.key === 'Enter') setEditingRow(null); }}
+                        autoFocus
+                      />
+                    ) : (
+                      <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+                        {row.verbs}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button className="btn-ghost" title="Edit verbs" onClick={() => setEditingRow(row.row_id)}>
+                      <Edit2 size={13} />
+                    </button>
+                    <button className="btn-ghost" title="Remove" onClick={() => removeRow(row.row_id)} style={{ color: 'var(--signal)' }}>
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <button className="btn-secondary" onClick={onBack}><ChevronLeft size={16} /> Back</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>{architecture.length} sub-processes</span>
+              <button className="btn-primary" onClick={onNext} disabled={!architecture.length}>
+                Map disclosures <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function Stat({ label, value, accent, highlight }) {
+      return (
+        <div style={{ background: 'var(--bg-card)', padding: '20px 24px' }}>
+          <div style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-4)', fontWeight: 600 }}>{label}</div>
+          <div className="display-font num" style={{
+            fontSize: 36,
+            fontWeight: 400,
+            color: highlight ? 'var(--signal)' : (accent ? 'var(--accent)' : 'var(--ink)'),
+            marginTop: 4,
+            lineHeight: 1,
+          }}>{value}</div>
+        </div>
+      );
+    }
+
+    function DisclosureResults({ hits, profile, architecture, onBack, onReset }) {
+      const [activeTab, setActiveTab] = useState('all');
+      const [downloading, setDownloading] = useState(false);
+
+      const stats = useMemo(() => {
+        const byStandard = {};
+        for (const h of hits) {
+          byStandard[h.standard] = (byStandard[h.standard] || 0) + 1;
+        }
+        const mandatory = hits.filter(h => h.mandatory).length;
+        const uniqueDataPoints = new Set(hits.map(h => `${h.name}|${h.unit}`)).size;
+        const consolidation = uniqueDataPoints ? (hits.length / uniqueDataPoints) : 0;
+        return { byStandard, mandatory, uniqueDataPoints, total: hits.length, consolidation };
+      }, [hits]);
+
+      const overlapData = useMemo(() => {
+        const map = new Map();
+        for (const h of hits) {
+          const key = `${h.pillar}|${h.name}`;
+          if (!map.has(key)) map.set(key, { pillar: h.pillar, name: h.name, unit: h.unit, standards: new Set(), codes: [] });
+          const e = map.get(key);
+          e.standards.add(h.standard);
+          e.codes.push({ std: h.standard, code: h.code });
+        }
+        return [...map.values()].sort((a, b) => b.standards.size - a.standards.size);
+      }, [hits]);
+
+      const filteredHits = useMemo(() => {
+        if (activeTab === 'all') return hits;
+        if (activeTab === 'mandatory') return hits.filter(h => h.mandatory);
+        return hits.filter(h => h.standard === activeTab);
+      }, [hits, activeTab]);
+
+      const handleDownload = () => {
+        setDownloading(true);
+        try {
+          downloadExcel({ profile, architecture, hits });
+        } catch (e) {
+          console.error('Download failed', e);
+          alert('Excel generation failed. Check the console.');
+        }
+        setDownloading(false);
+      };
+
+      return (
+        <div className="fade-in">
+          <div className="results-head" style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 24, flexWrap: 'wrap' }}>
+            <div>
+              <h1 className="display-font hero-h1" style={{ fontSize: 38, fontWeight: 400, lineHeight: 1.15, marginBottom: 8, color: 'var(--ink)' }}>
+                Your disclosure <span style={{ color: 'var(--accent)', fontWeight: 500 }}>checklist</span>
+              </h1>
+              <p style={{ fontSize: 14, color: 'var(--ink-3)', maxWidth: 720 }}>
+                For <strong style={{ color: 'var(--ink)' }}>{profile.company_name || 'your company'}</strong>, mapped from {architecture.length} sub-processes against {Object.keys(DISCLOSURES).length} indicators.
+              </p>
+            </div>
+            <button className="btn-primary" onClick={handleDownload} disabled={downloading}>
+              {downloading ? 'Building...' : <Fragment>Download .xlsx <Download size={16} /></Fragment>}
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 1, background: 'var(--line)', border: '1px solid var(--line)', borderRadius: 4 }}>
+            <Stat label="Total disclosures" value={stats.total} accent />
+            <Stat label="Mandatory" value={stats.mandatory} highlight />
+            <Stat label="Unique data points" value={stats.uniqueDataPoints} />
+            <Stat label="Consolidation" value={`${stats.consolidation.toFixed(1)}×`} accent />
+            <Stat label="Standards" value={Object.keys(stats.byStandard).length} />
+          </div>
+          <p style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.6, margin: '12px 2px 32px', maxWidth: 760 }}>
+            Those <strong style={{ color: 'var(--ink)' }}>{stats.total}</strong> reporting lines collapse to just <strong style={{ color: 'var(--ink)' }}>{stats.uniqueDataPoints}</strong> distinct measurements — collect each once, report it everywhere. The <span style={{ color: 'var(--accent)', fontWeight: 600 }}>Overlap analysis</span> tab shows which single data points satisfy the most frameworks.
+          </p>
+
+          <div className="tab-row">
+            <button className={`tab-btn ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')}>
+              <FileText size={13} /> All <span className="tab-count">{stats.total}</span>
+            </button>
+            <button className={`tab-btn ${activeTab === 'mandatory' ? 'active' : ''}`} onClick={() => setActiveTab('mandatory')}>
+              <AlertCircle size={13} /> Mandatory <span className="tab-count">{stats.mandatory}</span>
+            </button>
+            {Object.entries(stats.byStandard).sort(([, a], [, b]) => b - a).map(([std, n]) => (
+              <button key={std} className={`tab-btn ${activeTab === std ? 'active' : ''}`} onClick={() => setActiveTab(std)}>
+                {std} <span className="tab-count">{n}</span>
+              </button>
+            ))}
+            <button className={`tab-btn ${activeTab === 'overlap' ? 'active' : ''}`} onClick={() => setActiveTab('overlap')}>
+              <GitBranch size={13} /> Overlap analysis
+            </button>
+          </div>
+
+          {activeTab === 'overlap' ? (
+            <div className="scrollarea">
+              <table className="disc-table">
+                <thead>
+                  <tr>
+                    <th>Pillar</th>
+                    <th>Data point</th>
+                    <th>Unit</th>
+                    <th style={{ textAlign: 'center' }}># Standards</th>
+                    <th>Codes (one measurement → many reports)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {overlapData.map((e, i) => (
+                    <tr key={i}>
+                      <td><span className="mono" style={{ fontSize: 11, color: 'var(--ink-3)' }}>{e.pillar}</span></td>
+                      <td style={{ fontWeight: 500 }}>{e.name}</td>
+                      <td style={{ color: 'var(--ink-3)' }}>{e.unit}</td>
+                      <td style={{ textAlign: 'center', fontWeight: 600, color: e.standards.size > 1 ? 'var(--accent)' : 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace' }}>
+                        {e.standards.size}
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                          {e.codes.map((c, j) => (
+                            <span key={j} className="mono" style={{ fontSize: 10.5, padding: '2px 7px', background: 'var(--bg)', color: 'var(--ink-2)', border: '1px solid var(--line)', borderRadius: 2 }}>
+                              {c.std}:{c.code.replace(' [VERIFY]', '')}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : filteredHits.length === 0 ? (
+            <div className="scrollarea" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 200, padding: 32 }}>
+              <div style={{ textAlign: 'center', maxWidth: 420 }}>
+                <div className="display-font" style={{ fontSize: 20, fontWeight: 500, color: 'var(--ink)', marginBottom: 8 }}>
+                  Nothing in this view
+                </div>
+                <div style={{ fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.6 }}>
+                  {activeTab === 'mandatory'
+                    ? 'No disclosures are legally mandatory for this profile — everything here is voluntary. Switch to All to see the full checklist.'
+                    : 'No disclosures matched this filter. Switch to All to see the full checklist.'}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="scrollarea">
+              <table className="disc-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: 90 }}>Standard</th>
+                    <th style={{ width: 130 }}>Code</th>
+                    <th>Indicator</th>
+                    <th style={{ width: 110 }}>Unit</th>
+                    <th>Triggered by</th>
+                    <th style={{ width: 110 }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredHits.map((h, i) => (
+                    <tr key={`${h.disclosure_id}-${h.archetype_id}-${h.sub_id}-${i}`}>
+                      <td><span className="mono" style={{ fontSize: 11, fontWeight: 600 }}>{h.standard}</span></td>
+                      <td>
+                        <span className="mono" style={{ fontSize: 11, color: 'var(--ink-2)' }}>{h.code.replace(' [VERIFY]', '')}</span>
+                        {h.code.includes('[VERIFY]') && <span className="badge badge-verify" style={{ marginLeft: 6 }} title="Indicator name and unit are confirmed; the exact code string should be checked against the latest official standard text before filing.">verify code</span>}
+                      </td>
+                      <td style={{ fontWeight: 500 }}>{h.name}</td>
+                      <td style={{ color: 'var(--ink-3)' }}>{h.unit}</td>
+                      <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+                        <div style={{ fontWeight: 500, color: 'var(--ink-2)' }}>{h.phase}</div>
+                        <div className="mono" style={{ fontSize: 10.5, color: 'var(--ink-4)', marginTop: 2 }}>
+                          {h.archetype} {h.sub_id !== '—' ? `· ${h.sub_id}` : ''}
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`badge ${h.mandatory ? 'badge-mandatory' : 'badge-voluntary'}`}>
+                          {h.mandatory ? 'Mandatory' : 'Voluntary'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 32 }}>
+            <button className="btn-secondary" onClick={onBack}><ChevronLeft size={16} /> Edit architecture</button>
+            <button className="btn-secondary" onClick={onReset}>Start over</button>
+          </div>
+
+          <div style={{ marginTop: 48, padding: 24, background: 'var(--bg-card)', border: '1px solid var(--line)', borderRadius: 4 }}>
+            <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-4)', fontWeight: 600, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Sparkles size={12} /> Production roadmap
+            </div>
+            <p style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.65, margin: 0 }}>
+              This prototype runs the full deterministic pipeline — profile → architecture → mapping → deliverable — with optional Claude-assisted profile pre-fill from a pasted business description. The next step is LLM gap-fill for sub-processes the knowledge graph doesn't yet cover. A <span className="badge badge-verify">verify code</span> tag marks indicators whose name and unit are confirmed but whose exact code string predates the latest standard revision — confirm those against the official text before filing.
+            </p>
+          </div>
+
+          <div style={{ marginTop: 16, padding: 24, background: 'var(--warn-bg)', border: '1px solid #e8d896', borderRadius: 4 }}>
+            <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold)', fontWeight: 600, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Info size={12} /> Standards currency — June 2026
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.7 }}>
+              The regulatory landscape is mid-transition. Two of the standards mapped here are changing in ways that affect this output:
+              <ul style={{ margin: '10px 0 0', paddingLeft: 20 }}>
+                <li style={{ marginBottom: 8 }}><strong>ESRS (CSRD):</strong> the EU Omnibus narrowed mandatory scope to entities above ~1,000 employees and €450M turnover (in force March 2026) — reflected in the scoping above. The simplified <em>ESRS 2.0</em> cuts mandatory datapoints by 60%+ and removes all voluntary datapoints, but is still a draft delegated act applying from FY2027; the original ESRS datapoints mapped here remain in force for FY2025–26.</li>
+                <li><strong>SASB Electric Utilities &amp; Power Generators:</strong> now maintained by the ISSB, with an exposure draft of amendments open for comment until 24 July 2026. The IF-EU codes here are current but under active revision — region-specific ones (e.g. NERC CIP cybersecurity, US retail-rate metrics) are the likeliest to change. Hence the <span className="badge badge-verify">verify code</span> tags.</li>
+              </ul>
+              <div style={{ marginTop: 10 }}>GRI, ISSB S1/S2, BRSR Core, and CDP are current and stable for 2026 use.</div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================================
+    // MAIN APP
+    // ============================================================================
+
+    // ============================================================================
+    // ABOUT US PAGE
+    // ============================================================================
+
+    function AboutPage({ onStart }) {
+      const standards = [...new Set(Object.values(DISCLOSURES).map(d => d.standard))];
+      return (
+        <div className="fade-in" style={{ maxWidth: 880, margin: '0 auto', padding: '24px 0 0' }}>
+          <div style={{ marginBottom: 40 }}>
+            <div className="mono" style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-4)', marginBottom: 16 }}>
+              About the product
+            </div>
+            <h1 className="display-font" style={{ fontSize: 52, fontWeight: 400, lineHeight: 1.05, marginBottom: 20, color: 'var(--ink)', letterSpacing: '-0.025em' }}>
+              An ESG disclosure engine, <span style={{ color: 'var(--accent)', fontWeight: 500 }}>built for utilities</span>.
+            </h1>
+            <p style={{ fontSize: 18, color: 'var(--ink-2)', lineHeight: 1.6, maxWidth: 720, margin: 0 }}>
+              Materiality Map turns a utility company's operating profile into a precise, traceable checklist of the ESG disclosures it needs to report — across GRI, SASB, ISSB, ESRS, BRSR, and CDP.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 1, background: 'var(--line)', border: '1px solid var(--line)', borderRadius: 4, marginBottom: 48 }}>
+            <Stat label="Utility archetypes" value={Object.keys(ARCHETYPES).length} accent />
+            <Stat label="Disclosure indicators" value={Object.keys(DISCLOSURES).length} />
+            <Stat label="Frameworks covered" value={standards.length} />
+            <Stat label="Process mappings" value={Object.values(MAPPINGS).reduce((n, m) => n + Object.values(m).reduce((nn, arr) => nn + arr.length, 0), 0)} />
+          </div>
+
+          <div style={{ marginBottom: 48 }}>
+            <h2 className="display-font" style={{ fontSize: 28, fontWeight: 400, marginBottom: 16, color: 'var(--ink)' }}>
+              What it <span style={{ color: 'var(--accent)', fontWeight: 500 }}>does</span>
+            </h2>
+            <p style={{ fontSize: 15, color: 'var(--ink-2)', lineHeight: 1.75, marginBottom: 14 }}>
+              Sustainability teams at utility companies face a tangle of overlapping reporting frameworks. The same data point — Scope 1 emissions, water withdrawal, board diversity — surfaces under different codes in GRI, SASB, ESRS, ISSB, and country-specific regimes like India's BRSR. Figuring out exactly which subset applies to <strong style={{ color: 'var(--ink)' }}>your</strong> company, given your value chain position, fuel mix, geography, and listing status, is the first painful step before any number gets collected.
+            </p>
+            <p style={{ fontSize: 15, color: 'var(--ink-2)', lineHeight: 1.75, margin: 0 }}>
+              Materiality Map collapses that step into a four-stage walkthrough. You describe your business, pick the operating archetypes that match, review a stitched process architecture, and get a deduplicated disclosure checklist — exportable as a working Excel deliverable with a separate tab for each standard and a built-in overlap analysis.
+            </p>
+          </div>
+
+          <div style={{ marginBottom: 48 }}>
+            <h2 className="display-font" style={{ fontSize: 28, fontWeight: 400, marginBottom: 24, color: 'var(--ink)' }}>
+              How the <span style={{ color: 'var(--accent)', fontWeight: 500 }}>flow</span> works
+            </h2>
+            <div style={{ display: 'grid', gap: 16 }}>
+              {[
+                { n: '01', t: 'Profile', d: 'Describe your operations — value chain position, generation mix, HQ and operating geographies, listing status, size tier, climate disclosure regime. The form runs live applicability checks as you fill it.' },
+                { n: '02', t: 'Archetypes', d: 'Manually select the utility archetypes that describe your business — coal thermal, renewable IPP, transmission, distribution, retail, integrated, EV charging, and so on. (Auto-matching is disabled in this build; the operator picks them.)' },
+                { n: '03', t: 'Architecture', d: 'See the stitched process architecture — every sub-process from every selected archetype, grouped and deduplicated. Edit action verbs, remove rows that don\'t apply.' },
+                { n: '04', t: 'Disclosures', d: 'A deterministic knowledge graph maps each sub-process to relevant disclosures, then filters by jurisdictional applicability. Output: a working Excel with separate tabs per standard, overlap analysis, and a data collection plan.' },
+              ].map(s => (
+                <div key={s.n} style={{ display: 'grid', gridTemplateColumns: '60px 1fr', gap: 24, padding: '20px 24px', background: 'var(--bg-card)', border: '1px solid var(--line)', borderRadius: 4 }}>
+                  <div className="display-font num" style={{ fontSize: 28, fontWeight: 500, color: 'var(--accent)', lineHeight: 1 }}>{s.n}</div>
+                  <div>
+                    <div className="display-font" style={{ fontSize: 18, fontWeight: 500, color: 'var(--ink)', marginBottom: 6 }}>{s.t}</div>
+                    <div style={{ fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.65 }}>{s.d}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 48 }}>
+            <h2 className="display-font" style={{ fontSize: 28, fontWeight: 400, marginBottom: 16, color: 'var(--ink)' }}>
+              Frameworks <span style={{ color: 'var(--accent)', fontWeight: 500 }}>covered</span>
+            </h2>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {standards.sort().map(s => (
+                <span key={s} className="mono" style={{ padding: '6px 12px', background: 'var(--bg-card)', border: '1px solid var(--line-2)', borderRadius: 2, fontSize: 12, fontWeight: 600, color: 'var(--ink-2)' }}>
+                  {s}
+                </span>
+              ))}
+            </div>
+            <p style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.65, marginTop: 16 }}>
+              A <span className="badge badge-verify">verify code</span> tag in the output marks indicators whose name and unit are confirmed but whose exact code string should be checked against the latest official standard text before filing.
+            </p>
+          </div>
+
+          <div style={{ padding: 32, background: 'var(--bg-card)', border: '1px solid var(--line)', borderRadius: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+            <div>
+              <div className="display-font" style={{ fontSize: 22, fontWeight: 500, color: 'var(--ink)', marginBottom: 6 }}>
+                Ready to map your <span style={{ color: 'var(--accent)', fontWeight: 500 }}>disclosures</span>?
+              </div>
+              <div style={{ fontSize: 14, color: 'var(--ink-3)' }}>
+                Takes about 5 minutes for a Quick profile.
+              </div>
+            </div>
+            <button className="btn-primary" onClick={onStart}>
+              Open the tool <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================================
+    // FAQ PAGE
+    // ============================================================================
+
+    const FAQ_ITEMS = [
+      {
+        q: 'What is Materiality Map?',
+        a: 'A deterministic disclosure-scoping engine for utility companies. You describe your operations and selected archetypes, and the tool produces a deduplicated checklist of ESG indicators across the major global reporting frameworks, ready for export to Excel.'
+      },
+      {
+        q: 'Which reporting frameworks does it cover?',
+        a: 'The knowledge graph covers GRI Universal & Topic standards (including the legacy G4 EU sector codes), the SASB Electric Utilities & Power Generators standard (now maintained by the ISSB), ISSB S1 and S2, the EU\'s ESRS (E1–E5, S1–S4, G1), India\'s BRSR Core, and CDP. Coverage breadth per standard varies; the heaviest mappings are on environmental and climate topics.'
+      },
+      {
+        q: 'Are these frameworks current for 2026?',
+        a: 'All six are in use in 2026, but two are mid-change. ISSB S1/S2 is the rising global baseline (28 jurisdictions adopting as of April 2026); GRI, BRSR Core, and CDP are stable and active, with CDP using IFRS S2 as its climate baseline. The two in flux: ESRS, where the EU Omnibus (in force March 2026) cut mandatory scope to entities above ~1,000 employees and €450M turnover and a simplified "ESRS 2.0" — 60%+ fewer mandatory datapoints — will apply from FY2027; and SASB Electric Utilities, which the ISSB has an open exposure draft to amend (comment closes 24 July 2026). The tool reflects the post-Omnibus ESRS scope thresholds, keeps the original ESRS datapoints (still in force for FY2025–26), and flags the SASB IF-EU codes as "verify code" since they are under active revision.'
+      },
+      {
+        q: 'How does the tool decide which disclosures apply to me?',
+        a: 'Two layers. First, every selected archetype carries a set of sub-process → disclosure mappings drawn from the knowledge graph — so picking "Coal-Fired Thermal" pulls in air emissions, water withdrawal, coal combustion residuals, and so on. Second, a jurisdictional filter strips out disclosures that don\'t apply given your HQ, operating geographies, listing status, and size tier — for example, BRSR only fires for India-listed entities, ESRS only for EU operators above the SME-Private threshold.'
+      },
+      {
+        q: 'Do I pick archetypes by hand?',
+        a: 'You confirm them. When you reach the archetype step, the tool pre-selects the ones your profile implies — coal in your generation mix pre-checks Coal-Fired Thermal, a transmission segment pre-checks the transmission archetype, and so on. You then add anything it missed or remove what doesn\'t fit, and it flags obvious mismatches (e.g. you listed coal but didn\'t keep the coal archetype). The final scoping decision stays with you and stays auditable; the heuristic auto-scoring from earlier builds is still off.'
+      },
+      {
+        q: 'What does the "Read it with Claude" button do?',
+        a: 'In Strict mode you can paste an About Us page or annual-report intro and have Claude read it and pre-fill your value-chain position, generation mix, geographies, listing status, and size tier — all constrained to the tool\'s vocabulary, and all editable before you continue. It only pre-fills the form; the disclosure mapping itself stays fully deterministic. The live model runs when the tool is used inside Claude; in a self-hosted copy the call is blocked and it falls back to local keyword detection (or you can point it at your own endpoint).'
+      },
+      {
+        q: 'What does the "[VERIFY]" tag on a code mean?',
+        a: 'Some standard codes were captured against earlier published versions of the underlying standard (notably the SASB IF-EU series and a few ESRS datapoints). The "verify code" tag flags codes worth checking against the latest official text before filing. The indicator name and unit are confirmed either way — only the exact code string may need a refresh.'
+      },
+      {
+        q: 'Is the Excel output ready to submit as-is?',
+        a: 'No. The output is a working deliverable — a checklist with the right indicators, units, codes, and overlap analysis — not a filed report. You still need to collect the data, populate the values, assign data owners, set assurance levels, and validate against your auditor\'s expectations. The "Data Collection Plan" tab is structured for exactly that hand-off.'
+      },
+      {
+        q: 'What\'s the difference between Mandatory and Voluntary in the results?',
+        a: 'Mandatory means the disclosure is triggered by a regime that legally applies to your profile — BRSR for India-listed entities, ESRS for in-scope EU operators, ISSB S1/S2 where you\'ve marked yourselves as ISSB-adopting. Voluntary means the indicator is part of a framework you\'re reporting against by choice (GRI, SASB, CDP, or ISSB while still in the voluntary phase). Both belong in a real report; the split helps you prioritise.'
+      },
+      {
+        q: 'Is my company information stored anywhere?',
+        a: 'Almost entirely. The app runs in your browser — your profile, archetypes, edited verbs, and the generated checklist never hit a server, and Reset or a refresh clears everything. The one exception is the optional "Read it with Claude" button: if you use it, the business description you pasted is sent to the model to extract a profile. Skip that button and nothing leaves the page.'
+      },
+      {
+        q: 'Is this legal advice or assurance?',
+        a: 'No. Materiality Map is a scoping aid built on a curated knowledge graph; it is not legal, audit, or assurance advice. Decisions about what your company is legally obligated to disclose should be confirmed with qualified counsel and your assurance provider against the current text of each applicable standard.'
+      },
+      {
+        q: 'Who is this for?',
+        a: 'Sustainability leads, ESG reporting analysts, and consultants working with electricity-sector clients — generation, transmission, distribution, retail, trading, integrated utilities, renewable IPPs, EV charging networks. The archetype library is utilities-specific; it is not currently useful for non-utility sectors.'
+      },
+    ];
+
+    function FAQItem({ item, isOpen, onToggle }) {
+      return (
+        <div style={{ borderBottom: '1px solid var(--line)' }}>
+          <button
+            onClick={onToggle}
+            style={{
+              width: '100%',
+              background: 'transparent',
+              border: 'none',
+              padding: '22px 4px',
+              textAlign: 'left',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              gap: 24,
+              color: 'var(--ink)',
+            }}
+          >
+            <span className="display-font" style={{ fontSize: 19, fontWeight: 500, lineHeight: 1.35, letterSpacing: '-0.005em' }}>
+              {item.q}
+            </span>
+            <span style={{
+              fontSize: 24,
+              color: 'var(--accent)',
+              fontFamily: 'Inter, system-ui, sans-serif',
+              fontWeight: 300,
+              lineHeight: 1,
+              transition: 'transform 0.2s',
+              transform: isOpen ? 'rotate(45deg)' : 'rotate(0)',
+              flexShrink: 0,
+              marginTop: 2,
+            }}>+</span>
+          </button>
+          {isOpen && (
+            <div className="fade-in" style={{ padding: '0 4px 24px', fontSize: 15, color: 'var(--ink-2)', lineHeight: 1.75, maxWidth: 760 }}>
+              {item.a}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function FAQPage({ onStart }) {
+      const [openIdx, setOpenIdx] = useState(0);
+      return (
+        <div className="fade-in" style={{ maxWidth: 880, margin: '0 auto', padding: '24px 0 0' }}>
+          <div style={{ marginBottom: 40 }}>
+            <div className="mono" style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-4)', marginBottom: 16 }}>
+              Frequently asked
+            </div>
+            <h1 className="display-font" style={{ fontSize: 52, fontWeight: 400, lineHeight: 1.05, marginBottom: 20, color: 'var(--ink)', letterSpacing: '-0.025em' }}>
+              Questions, <span style={{ color: 'var(--accent)', fontWeight: 500 }}>answered</span>.
+            </h1>
+            <p style={{ fontSize: 16, color: 'var(--ink-3)', lineHeight: 1.6, maxWidth: 680, margin: 0 }}>
+              What the tool covers, how it scopes disclosures, and what it isn't.
+            </p>
+          </div>
+
+          <div style={{ borderTop: '1px solid var(--line)', marginBottom: 48 }}>
+            {FAQ_ITEMS.map((item, idx) => (
+              <FAQItem
+                key={idx}
+                item={item}
+                isOpen={openIdx === idx}
+                onToggle={() => setOpenIdx(openIdx === idx ? -1 : idx)}
+              />
+            ))}
+          </div>
+
+          <div style={{ padding: 28, background: 'var(--bg-card)', border: '1px solid var(--line)', borderRadius: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+            <div style={{ fontSize: 14, color: 'var(--ink-3)' }}>
+              Couldn't find what you were looking for? The fastest answer is usually to try the tool.
+            </div>
+            <button className="btn-primary" onClick={onStart}>
+              Open the tool <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================================
+    // MAIN APP
+    // ============================================================================
+
+    function App() {
+      const [view, setView] = useState('tool'); // 'tool' | 'about' | 'faq'
+      const [stage, setStage] = useState(1);
+      const [profile, setProfile] = useState({
+        company_name: '',
+        data_collection_mode: 'Quick',
+        about_us_text: '',
+        value_chain: [],
+        generation_mix: [],
+        geography_hq: '',
+        geography_operations: [],
+        listing_status: '',
+        size_tier: '',
+        issb_adoption: 'Voluntary',
+        reporting_maturity: 'First-time',
+      });
+      const [selectedArchetypes, setSelectedArchetypes] = useState([]);
+      const [architecture, setArchitecture] = useState([]);
+      const [hits, setHits] = useState([]);
+      const [profileError, setProfileError] = useState('');
+
+      const updateProfile = (field, value) => setProfile(p => ({ ...p, [field]: value }));
+
+      // Merge a partial profile extracted from free text (AI or local fallback).
+      // Only fills fields the extractor is confident about; never clobbers company name.
+      const applyExtracted = (fields) => {
+        setProfile(p => {
+          const next = { ...p };
+          for (const [k, v] of Object.entries(fields)) {
+            if (k === 'company_name') continue;
+            if (Array.isArray(v) ? v.length : v) next[k] = v;
+          }
+          return next;
+        });
+      };
+
+      const proceedToStage2 = () => {
+        if (!profile.company_name?.trim()) { setProfileError('Company name is required'); return; }
+        if (!profile.value_chain?.length) { setProfileError('Select at least one value chain segment'); return; }
+        const needsGenMix = profile.value_chain.includes('Generation') || profile.value_chain.includes('Integrated');
+        if (needsGenMix && !profile.generation_mix?.length) { setProfileError('Generation mix is required when Generation or Integrated is selected'); return; }
+        if (!profile.geography_hq) { setProfileError('HQ geography is required'); return; }
+        if (!profile.geography_operations?.length) { setProfileError('At least one operating geography is required'); return; }
+        if (!profile.listing_status) { setProfileError('Listing status is required'); return; }
+        if (!profile.size_tier) { setProfileError('Size tier is required'); return; }
+        setProfileError('');
+        // Pre-select the archetypes implied by the profile. The operator confirms or edits
+        // these in stage 2 — nothing is locked in. Only seed when nothing is chosen yet.
+        setSelectedArchetypes(prev => prev.length ? prev : suggestArchetypes(profile));
+        setStage(2);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
+      const proceedToStage3 = () => {
+        const arch = stitchArchitecture(selectedArchetypes);
+        setArchitecture(arch);
+        setStage(3);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
+      const proceedToStage4 = () => {
+        const computed = mapDisclosures(architecture, profile);
+        setHits(computed);
+        setStage(4);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
+      const goBack = () => { setStage(s => Math.max(1, s - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+      const jumpToStage = (target) => { if (target < stage) { setStage(target); window.scrollTo({ top: 0, behavior: 'smooth' }); } };
+      const reset = () => {
+        setStage(1);
+        setProfile({ company_name: '', data_collection_mode: 'Quick', about_us_text: '', value_chain: [], generation_mix: [], geography_hq: '', geography_operations: [], listing_status: '', size_tier: '', issb_adoption: 'Voluntary', reporting_maturity: 'First-time' });
+        setArchitecture([]); setHits([]); setSelectedArchetypes([]);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
+      const showGenMix = profile.value_chain.includes('Generation') || profile.value_chain.includes('Integrated');
+
+      // Remove splash once mounted
+      useEffect(() => {
+        const splash = document.getElementById('loading-splash');
+        if (splash) splash.style.display = 'none';
+      }, []);
+
+      return (
+        <Fragment>
+          <header style={{ borderBottom: '1px solid var(--line)', background: 'var(--bg)' }}>
+            <div className="hdr-inner" style={{ maxWidth: 1280, margin: '0 auto', padding: '40px 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 32, flexWrap: 'wrap' }}>
+              <div onClick={() => setView('tool')} style={{ cursor: 'pointer' }}>
+                <div className="display-font" style={{ fontSize: 42, fontWeight: 500, color: 'var(--ink)', lineHeight: 1.05, letterSpacing: '-0.02em' }}>
+                  Materiality<span style={{ color: 'var(--accent)', fontWeight: 500 }}> Map</span>
+                </div>
+                <div className="mono" style={{ fontSize: 12, color: 'var(--ink-4)', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 8 }}>
+                  ESG Disclosure Engine · Utilities · Demo
+                </div>
+              </div>
+              <nav style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                {[
+                  { id: 'tool', label: 'Tool' },
+                  { id: 'about', label: 'About' },
+                  { id: 'faq', label: 'FAQ' },
+                ].map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => setView(item.id)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      padding: '12px 22px',
+                      fontFamily: 'inherit',
+                      fontSize: 16,
+                      fontWeight: 500,
+                      letterSpacing: '0.01em',
+                      color: view === item.id ? 'var(--ink)' : 'var(--ink-3)',
+                      cursor: 'pointer',
+                      borderBottom: `2px solid ${view === item.id ? 'var(--accent)' : 'transparent'}`,
+                      transition: 'color 0.15s, border-color 0.15s',
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </nav>
+              <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
+                <div className="mono nav-hide" style={{ fontSize: 13, color: 'var(--ink-4)', letterSpacing: '0.04em' }}>
+                  v5 · {Object.keys(ARCHETYPES).length} archetypes · {Object.keys(DISCLOSURES).length} indicators
+                </div>
+                {view === 'tool' && stage > 1 && (
+                  <button className="btn-ghost" onClick={reset} style={{ fontSize: 14 }}>Reset</button>
+                )}
+              </div>
+            </div>
+          </header>
+
+          {view === 'tool' && (
+            <div className="stage-pad" style={{ maxWidth: 1280, margin: '0 auto', padding: '0 32px' }}>
+              <StageIndicator current={stage} onJump={jumpToStage} />
+            </div>
+          )}
+
+          <main className="main-pad" style={{ maxWidth: 1280, margin: '0 auto', padding: '0 32px 80px' }}>
+            {view === 'about' && <AboutPage onStart={() => setView('tool')} />}
+            {view === 'faq' && <FAQPage onStart={() => setView('tool')} />}
+
+            {view === 'tool' && stage === 1 && (
+              <ProfileForm
+                profile={profile}
+                updateProfile={updateProfile}
+                applyExtracted={applyExtracted}
+                showGenMix={showGenMix}
+                onNext={proceedToStage2}
+                error={profileError}
+              />
+            )}
+
+            {view === 'tool' && stage === 2 && (
+              <ArchetypeSelection
+                selected={selectedArchetypes}
+                setSelected={setSelectedArchetypes}
+                profile={profile}
+                onBack={goBack}
+                onNext={proceedToStage3}
+              />
+            )}
+
+            {view === 'tool' && stage === 3 && (
+              <ArchitectureEditor
+                architecture={architecture}
+                setArchitecture={setArchitecture}
+                onBack={goBack}
+                onNext={proceedToStage4}
+              />
+            )}
+
+            {view === 'tool' && stage === 4 && (
+              <DisclosureResults
+                hits={hits}
+                profile={profile}
+                architecture={architecture}
+                onBack={goBack}
+                onReset={reset}
+              />
+            )}
+          </main>
+
+          <footer style={{ borderTop: '1px solid var(--line)', background: 'var(--bg)', marginTop: 'auto' }}>
+            <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+              <div className="mono" style={{ fontSize: 11, color: 'var(--ink-4)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                Built by <span style={{ color: 'var(--accent)', fontWeight: 600 }}>Sattvi</span> for Utilities
+              </div>
+              <div className="mono" style={{ fontSize: 11, color: 'var(--ink-4)', letterSpacing: '0.06em' }}>
+                © {new Date().getFullYear()} · All rights reserved
+              </div>
+            </div>
+          </footer>
+        </Fragment>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
