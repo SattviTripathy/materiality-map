@@ -952,22 +952,22 @@
     //   metric fields: d (→DISCLOSURES), scope, materiality, confidence, mechanism,
     //   measurement, source, and optional req[] (context tags gating the metric).
     // ----------------------------------------------------------------------------
+    // Each metric carries a primary `d` plus an `also` list of framework-equivalent
+    // disclosures it satisfies from the SAME measurement — the node-level expression
+    // of "collect once, report everywhere". A metric traces every code in {d} ∪ also.
     const PRIMITIVES = {
       fuel_sourcing: {
         label: 'Fuel sourcing', desc: 'Bringing a fuel to the asset boundary.',
         metrics: [
-          { d: 'D-GRI-302-1', scope: 3, materiality: 'H', confidence: 'calculated',
+          { d: 'D-GRI-302-1', also: ['D-ESRS-E1-5', 'D-BRSR-P6-1', 'D-CDP-C8'], scope: 3, materiality: 'H', confidence: 'calculated',
             mechanism: 'Fuel quantity × gross calorific value = energy input — the denominator every downstream intensity divides by.',
             measurement: 'Metered quantity (weighbridge / gas flow) × lab-assayed CV', source: 'Fuel procurement & fuel-lab records' },
-          { d: 'D-GRI-305-3', scope: 3, materiality: 'M', confidence: 'estimated', req: ['upstream_ghg'],
-            mechanism: 'Upstream fuel-cycle emissions before the gate — coal-mine methane, or pipeline/LNG leakage for gas.',
-            measurement: 'Supplier data or fuel-cycle emission factor', source: 'Supplier disclosure / factor database' },
         ],
       },
       fuel_storage: {
         label: 'Fuel storage & handling', desc: 'On-site storage and conveyance of solid fuel.',
         metrics: [
-          { d: 'D-GRI-305-7', scope: 'env', materiality: 'L', confidence: 'estimated', req: ['dusty'],
+          { d: 'D-GRI-305-7', scope: 'env', materiality: 'L', confidence: 'estimated',
             mechanism: 'Wind erosion of stockpiles and conveyor transfer points releases fugitive particulate (PM).',
             measurement: 'Dust dispersion model (AP-42 emission factors)', source: 'Environmental engineering estimate' },
         ],
@@ -975,7 +975,7 @@
       aux_power: {
         label: 'Auxiliary power draw', desc: 'Parasitic electrical load of on-site equipment.',
         metrics: [
-          { d: 'D-GRI-302-1', scope: 2, materiality: 'M', confidence: 'measured',
+          { d: 'D-GRI-302-1', also: ['D-ESRS-E1-5', 'D-BRSR-P6-1'], scope: 2, materiality: 'M', confidence: 'measured',
             mechanism: 'Auxiliary equipment (mills, pumps, fans, precipitators) draws a parasitic load that reduces net export.',
             measurement: 'Sub-metered auxiliary kWh', source: 'Plant DCS / auxiliary metering' },
         ],
@@ -983,32 +983,26 @@
       combustion: {
         label: 'Combustion', desc: 'Oxidation of a fuel to release heat. The emissions core of any thermal asset.',
         metrics: [
-          { d: 'D-GRI-305-1', scope: 1, materiality: 'H', confidence: 'measured', req: ['carbon'],
-            mechanism: 'Stoichiometric oxidation of fuel carbon (C + O₂ → CO₂). This node is the dominant source of the whole asset’s footprint.',
+          { d: 'D-GRI-305-1', also: ['D-SASB-110a-1', 'D-ISSB-S2-S1', 'D-ESRS-E1-6', 'D-BRSR-P6-4', 'D-CDP-C6'], scope: 1, materiality: 'H', confidence: 'measured', req: ['carbon'],
+            mechanism: 'Stoichiometric oxidation of fuel carbon (C + O₂ → CO₂). This node is the dominant source of the whole asset’s footprint — and the one number six frameworks all ask for.',
             measurement: 'CEMS stack CO₂, cross-checked by fuel-carbon mass balance', source: 'CEMS + fuel-carbon lab assay' },
-          { d: 'D-GRI-305-7', scope: 'env', materiality: 'H', confidence: 'measured',
-            mechanism: 'Peak flame temperature fixes atmospheric N₂ into thermal NOx; fuel-bound nitrogen adds to it.',
-            measurement: 'Stack CEMS (NOx analyzer)', source: 'Continuous Emissions Monitoring System' },
-          { d: 'D-SASB-120a-1', scope: 'env', materiality: 'H', confidence: 'measured', req: ['sulfur'],
-            mechanism: 'Oxidation of fuel-bound sulfur yields SO₂; ash & incomplete combustion yield PM and trace Hg. Absent in sulfur-free fuels.',
-            measurement: 'Stack CEMS (SO₂, PM) + periodic Hg sorbent-trap', source: 'CEMS + stack-test lab' },
-          { d: 'D-SASB-110a-1', scope: 1, materiality: 'M', confidence: 'measured', req: ['methane'],
-            mechanism: 'Unburned methane slipping through the turbine adds to gross Scope 1 at ~28–80× the GWP of CO₂ — material for gas, absent for solid fuels.',
-            measurement: 'Tunable-diode-laser or periodic exhaust sampling', source: 'Emissions monitoring / OGMP 2.0 reporting' },
+          { d: 'D-GRI-305-7', also: ['D-SASB-120a-1', 'D-ESRS-E2-4', 'D-BRSR-P6-3'], scope: 'env', materiality: 'H', confidence: 'measured', req: ['carbon'],
+            mechanism: 'Peak flame temperature fixes atmospheric N₂ into thermal NOx. Sulfur-bearing fuels (coal, oil) add SO₂, particulates and trace Hg; sulfur-free gas does not.',
+            measurement: 'Stack CEMS (NOx, SO₂, PM) + periodic Hg sorbent-trap', source: 'Continuous Emissions Monitoring System' },
         ],
       },
       thermal_hazard: {
         label: 'Thermal hazard zone', desc: 'High-temperature radiant environment with worker exposure.',
         metrics: [
-          { d: 'D-GRI-403-9', scope: 'env', materiality: 'M', confidence: 'measured',
+          { d: 'D-GRI-403-9', also: ['D-SASB-320a-1', 'D-ESRS-S1-14', 'D-BRSR-P3-2'], scope: 'env', materiality: 'M', confidence: 'measured',
             mechanism: 'The radiant/hot-gas zone is the plant’s highest thermal-burn and confined-space hazard exposure.',
-            measurement: 'Recordable-injury log (TRIR)', source: 'EHS incident management system' },
+            measurement: 'Recordable-injury log (TRIR / LTIFR)', source: 'EHS incident management system' },
         ],
       },
       heat_transfer: {
         label: 'Heat transfer', desc: 'Moving released heat into the working fluid (boiler / HRSG).',
         metrics: [
-          { d: 'D-GRI-302-1', scope: 1, materiality: 'M', confidence: 'measured',
+          { d: 'D-GRI-302-1', also: ['D-ESRS-E1-5', 'D-BRSR-P6-1', 'D-CDP-C8'], scope: 1, materiality: 'M', confidence: 'measured',
             mechanism: 'Heat-transfer losses (flue-gas exit temp, radiation) set how much fuel energy never reaches the steam — wasted fuel is wasted Scope 1.',
             measurement: 'Boiler/HRSG efficiency by heat-loss method', source: 'Plant performance / DCS' },
         ],
@@ -1027,12 +1021,15 @@
           { d: 'D-GRI-EU2', scope: 'env', materiality: 'H', confidence: 'measured',
             mechanism: 'Net electricity exported (gross minus parasitic) — the denominator for every per-MWh intensity metric.',
             measurement: 'Revenue-grade export meter', source: 'Settlement / revenue metering' },
+          { d: 'D-GRI-EU1', scope: 'env', materiality: 'L', confidence: 'measured',
+            mechanism: 'Nameplate installed capacity by primary energy source — a static register value set at commissioning.',
+            measurement: 'Nameplate rating', source: 'Asset register / grid connection agreement' },
         ],
       },
       intensity_derived: {
         label: 'Derived intensity', desc: 'A KPI assembled from other nodes, measured nowhere directly.',
         metrics: [
-          { d: 'D-GRI-305-4', scope: 1, materiality: 'H', confidence: 'calculated',
+          { d: 'D-GRI-305-4', also: ['D-ISSB-S2-Intensity', 'D-CDP-C9', 'D-BRSR-P6-4'], scope: 1, materiality: 'H', confidence: 'calculated',
             mechanism: 'Derived node: Scope 1 CO₂ (combustion) ÷ net export (grid export). Not measured anywhere — assembled from two upstream nodes, so its assurance inherits theirs.',
             measurement: 'Computed: 305-1 ÷ EU2', source: 'Derived KPI (no direct instrument)' },
         ],
@@ -1040,15 +1037,62 @@
       cooling_water: {
         label: 'Cooling-water circuit', desc: 'Rejecting condenser waste heat via a water loop.',
         metrics: [
-          { d: 'D-GRI-303-3', scope: 'env', materiality: 'M', confidence: 'measured',
+          { d: 'D-GRI-303-3', also: ['D-SASB-140a-1', 'D-BRSR-P6-2', 'D-GRI-303-1'], scope: 'env', materiality: 'M', confidence: 'measured',
             mechanism: 'Raw water withdrawn from the source for the cooling loop (once-through draw or recirculating make-up).',
             measurement: 'Intake flow meter', source: 'Raw-water intake metering' },
-          { d: 'D-GRI-303-5', scope: 'env', materiality: 'H', confidence: 'calculated', req: ['evaporative'],
+          { d: 'D-GRI-303-5', also: ['D-ESRS-E3-4'], scope: 'env', materiality: 'H', confidence: 'calculated', req: ['evaporative'],
             mechanism: 'Evaporative loss in the cooling tower is consumptive water use — irreversible, and acute in water-stressed basins.',
             measurement: 'Make-up water metered minus blowdown metered', source: 'Water balance / flow meters' },
-          { d: 'D-GRI-303-4', scope: 'env', materiality: 'M', confidence: 'measured',
+          { d: 'D-GRI-303-4', also: ['D-SASB-140a-2'], scope: 'env', materiality: 'M', confidence: 'measured',
             mechanism: 'Return flow rejects waste heat to the receiving water body — a thermal-plume impact at the outfall.',
             measurement: 'Discharge flow meter + outfall temperature', source: 'Effluent monitoring / consent point' },
+        ],
+      },
+      flue_gas_treatment: {
+        label: 'Flue-gas treatment', desc: 'Scrubbing pollutants from the exhaust stream before the stack.',
+        metrics: [
+          { d: 'D-GRI-303-4', also: ['D-SASB-140a-2'], scope: 'env', materiality: 'M', confidence: 'measured',
+            mechanism: 'Wet flue-gas desulfurisation generates a chloride-rich wastewater stream that must be treated before discharge.',
+            measurement: 'Scrubber blowdown flow + effluent quality', source: 'Effluent monitoring / consent point' },
+        ],
+      },
+      residuals_handling: {
+        label: 'Solid-residuals handling', desc: 'Managing ash, gypsum, spent catalyst and other combustion/abatement residuals.',
+        metrics: [
+          { d: 'D-GRI-306-3', also: ['D-ESRS-E5-5', 'D-BRSR-P6-5'], scope: 'env', materiality: 'M', confidence: 'measured',
+            mechanism: 'Solid residuals — fly/bottom ash, FGD gypsum, spent SCR catalyst — generated by combustion and abatement.',
+            measurement: 'Weighed dispatch tickets by stream', source: 'Waste manifests / weighbridge' },
+          { d: 'D-GRI-306-4', also: ['D-SASB-150a-1'], scope: 'env', materiality: 'M', confidence: 'measured', req: ['ccr'],
+            mechanism: 'Coal-combustion residuals beneficially reused (cement, gypsum board) rather than landfilled — the recovery rate.',
+            measurement: 'Recycled tonnage ÷ generated tonnage', source: 'Sales & disposal records' },
+          { d: 'D-GRI-306-5', scope: 'env', materiality: 'M', confidence: 'measured', req: ['disposal'],
+            mechanism: 'Residuals directed to disposal — ash pond or lined landfill — the fraction not recovered.',
+            measurement: 'Disposed tonnage by route', source: 'Waste manifests' },
+          { d: 'D-GRI-306-4', also: ['D-ESRS-E5-4'], scope: 'env', materiality: 'L', confidence: 'measured', req: ['recovery'],
+            mechanism: 'Saleable byproduct (gypsum, ash) recovered as a resource inflow to another industry — a circularity outflow.',
+            measurement: 'Recovered byproduct tonnage', source: 'Sales records' },
+        ],
+      },
+      upstream_supply: {
+        label: 'Upstream supply chain', desc: 'The fuel and equipment supply chain feeding the asset.',
+        metrics: [
+          { d: 'D-GRI-305-3', also: ['D-ISSB-S2-S3', 'D-BRSR-P6-7', 'D-ESRS-E1-6'], scope: 3, materiality: 'M', confidence: 'estimated',
+            mechanism: 'Upstream fuel-cycle emissions before the gate — coal-mine methane and rail/barge haulage, or gas production and pipeline/LNG leakage.',
+            measurement: 'Supplier data or fuel-cycle emission factor', source: 'Supplier disclosure / factor database' },
+          { d: 'D-GRI-308-1', also: ['D-GRI-414-1'], scope: 'env', materiality: 'L', confidence: 'measured',
+            mechanism: 'New fuel and equipment suppliers screened against environmental (308-1) and social (414-1) criteria at onboarding.',
+            measurement: '% new suppliers screened', source: 'Procurement / vendor onboarding system' },
+        ],
+      },
+      fugitive_methane: {
+        label: 'Fugitive methane', desc: 'Unburned methane escaping the gas system.',
+        metrics: [
+          { d: 'D-GRI-305-1', also: ['D-ISSB-S2-S1'], scope: 1, materiality: 'M', confidence: 'measured',
+            mechanism: 'Fugitive methane from valves, flanges, seals and venting across the gas train — high-GWP direct Scope 1, quantified by leak detection & repair.',
+            measurement: 'LDAR survey + component emission factors', source: 'OGMP 2.0 / LDAR programme' },
+          { d: 'D-SASB-110a-2', scope: 1, materiality: 'L', confidence: 'estimated',
+            mechanism: 'The methane-management strategy narrative — targets, LDAR cadence, and reduction programme.',
+            measurement: 'Programme documentation', source: 'Climate strategy / management system' },
         ],
       },
     };
@@ -1057,19 +1101,19 @@
     // PROCESS_NODES — composition. Each phase is a list of unit-operation nodes,
     // and each node just NAMES a primitive plus the context tags that switch its
     // metrics on/off. No metric text lives here — it all resolves from PRIMITIVES.
-    // Coal and CCGT below are both composed from the same library; note how the one
-    // `combustion` primitive yields SOx for coal (sulfur) and methane-slip for gas
-    // (methane), with no duplicated authoring.
+    // Coal and CCGT are fully composed from the shared library across all phases;
+    // the same primitives (combustion, cooling_water, residuals_handling, …) recur
+    // with different context, so instrumenting a second archetype is near-free.
     // ----------------------------------------------------------------------------
     const PROCESS_NODES = {
       '1_Coal_Thermal': {
         '1.1': [
-          { op: 'Procuring', primitive: 'fuel_sourcing', ctx: ['upstream_ghg'], note: 'Coal railed/trucked in; weighbridge tonnage × lab-assayed CV. Coal-mine methane sits upstream.' },
-          { op: 'Storing', primitive: 'fuel_storage', ctx: ['dusty'] },
+          { op: 'Procuring', primitive: 'fuel_sourcing', note: 'Coal railed/trucked in; weighbridge tonnage × lab-assayed CV.' },
+          { op: 'Storing', primitive: 'fuel_storage', note: 'Open stockyard — fugitive coal dust from wind erosion.' },
           { op: 'Pulverizing', primitive: 'aux_power', note: 'Mills grinding coal to face-powder fineness are a major parasitic load.' },
         ],
         '1.2': [
-          { op: 'Burning', primitive: 'combustion', ctx: ['carbon', 'sulfur'] },
+          { op: 'Burning', primitive: 'combustion', ctx: ['carbon'], note: 'High-sulfur coal — SO₂, particulates and trace Hg accompany the NOx.' },
           { op: 'Radiating', primitive: 'thermal_hazard' },
         ],
         '1.3': [
@@ -1084,13 +1128,34 @@
           { op: 'Cooling circuit', primitive: 'cooling_water', ctx: ['evaporative'], note: 'Recirculating wet cooling with a natural-draft tower.' },
           { op: 'Pumping & fans', primitive: 'aux_power', note: 'Circulating-water pumps, ID/FD fans, ESP.' },
         ],
+        '2.1': [
+          { op: 'Scrubbing', primitive: 'flue_gas_treatment', note: 'Wet FGD removes SO₂ but produces a wastewater stream.' },
+        ],
+        '2.2': [
+          { op: 'Capturing particulate', primitive: 'residuals_handling', ctx: ['ccr'], note: 'Electrostatic precipitator collects fly ash — a beneficially-reusable residual.' },
+        ],
+        '2.3': [
+          { op: 'Neutralizing', primitive: 'residuals_handling', note: 'Reagent dosing yields FGD gypsum and neutralised sludge.' },
+        ],
+        '3.1': [
+          { op: 'Sourcing & hauling', primitive: 'upstream_supply', note: 'Coal-mine methane and rail/barge haulage sit upstream of the gate.' },
+        ],
+        '3.2': [
+          { op: 'Ash handling', primitive: 'residuals_handling', ctx: ['ccr', 'disposal'], note: 'Bottom & fly ash: recycled to cement, or sluiced to the ash pond.' },
+        ],
+        '3.3': [
+          { op: 'Water management', primitive: 'cooling_water', ctx: ['evaporative'], note: 'Whole-site water balance across withdrawal, consumption and discharge.' },
+        ],
+        '3.4': [
+          { op: 'Byproduct recovery', primitive: 'residuals_handling', ctx: ['recovery'], note: 'Synthetic gypsum sold to wallboard manufacturers.' },
+        ],
       },
       '2_CCGT': {
         '1.1': [
-          { op: 'Conditioning gas', primitive: 'fuel_sourcing', ctx: ['upstream_ghg'], note: 'Pipeline gas metered by volume × CV; upstream leakage is the material upstream term.' },
+          { op: 'Firing', primitive: 'combustion', ctx: ['carbon'], note: 'Combustion begins as conditioned gas enters the combustor — CO₂ attributed at the fuel-intake boundary.' },
         ],
         '1.2': [
-          { op: 'Combusting', primitive: 'combustion', ctx: ['carbon', 'methane'], note: 'Lean pre-mixed gas-turbine combustion — no fuel sulfur, but unburned methane slip.' },
+          { op: 'Combusting', primitive: 'combustion', ctx: ['carbon'], note: 'Lean pre-mixed gas-turbine combustion — no fuel sulfur; methane slip is managed at 3.4.' },
         ],
         '1.3': [
           { op: 'Recovering heat', primitive: 'heat_transfer', note: 'Heat-recovery steam generator (HRSG) captures turbine exhaust.' },
@@ -1101,7 +1166,18 @@
         ],
         '1.5': [
           { op: 'Exporting', primitive: 'grid_export' },
-          { op: 'Intensity', primitive: 'intensity_derived' },
+        ],
+        '2.1': [
+          { op: 'NOx control (SCR)', primitive: 'residuals_handling', note: 'Selective catalytic reduction — spent catalyst is a periodic solid residual.' },
+        ],
+        '3.1': [
+          { op: 'Gas supply', primitive: 'upstream_supply', note: 'Gas production and pipeline/LNG leakage dominate the upstream term.' },
+        ],
+        '3.2': [
+          { op: 'Water management', primitive: 'cooling_water', ctx: ['evaporative'], note: 'Cooling-water withdrawal and thermal discharge.' },
+        ],
+        '3.4': [
+          { op: 'Leak detection & repair', primitive: 'fugitive_methane', note: 'LDAR across valves, flanges and vents — the material non-CO₂ Scope 1 term for gas.' },
         ],
       },
     };
@@ -1141,7 +1217,9 @@
     const nodeProvenanceFor = (archId, subId, did) => {
       const nodes = getInstrumentedNodes(archId, subId);
       for (const node of nodes) {
-        const m = node.metrics.find(mm => mm.d === did);
+        // A metric traces a disclosure whether it is the metric's primary `d` or
+        // one of the `also` framework-equivalents — one measurement, many reports.
+        const m = node.metrics.find(mm => mm.d === did || (mm.also || []).includes(did));
         if (m) return {
           op: node.op, primitive: node.primitive, primitiveLabel: node.meta.label,
           mechanism: m.mechanism, measurement: m.measurement, dataSource: m.source,
@@ -2318,7 +2396,7 @@ Company description:
               <Sparkles size={12} /> Production roadmap
             </div>
             <p style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.65, margin: 0 }}>
-              This prototype runs the full deterministic pipeline — profile → architecture → mapping → deliverable — with optional Claude-assisted profile pre-fill from a pasted business description. The next step is LLM gap-fill for sub-processes the knowledge graph doesn't yet cover. A <span className="badge badge-verify">verify code</span> tag marks indicators whose name and unit are confirmed but whose exact code string predates the latest standard revision — confirm those against the official text before filing.
+              This prototype runs the full deterministic pipeline — profile → architecture → mapping → node-level provenance → deliverable — with optional Claude-assisted profile pre-fill from a pasted business description. The Coal-Fired Thermal and CCGT archetypes are fully instrumented to unit-operation level; the remaining archetypes carry the phase-level mapping and are the next to be composed from the same primitive library. A <span className="badge badge-verify">verify code</span> tag marks indicators whose name and unit are confirmed but whose exact code string predates the latest standard revision — confirm those against the official text before filing.
             </p>
           </div>
 
@@ -2367,7 +2445,7 @@ Company description:
             <Stat label="Utility archetypes" value={Object.keys(ARCHETYPES).length} accent />
             <Stat label="Disclosure indicators" value={Object.keys(DISCLOSURES).length} />
             <Stat label="Frameworks covered" value={standards.length} />
-            <Stat label="Process mappings" value={Object.values(MAPPINGS).reduce((n, m) => n + Object.values(m).reduce((nn, arr) => nn + arr.length, 0), 0)} />
+            <Stat label="Unit-operation primitives" value={Object.keys(PRIMITIVES).length} accent />
           </div>
 
           <div style={{ marginBottom: 48 }}>
@@ -2380,6 +2458,9 @@ Company description:
             <p style={{ fontSize: 15, color: 'var(--ink-2)', lineHeight: 1.75, margin: 0 }}>
               Materiality Map collapses that step into a four-stage walkthrough. You describe your business, pick the operating archetypes that match, review a stitched process architecture, and get a deduplicated disclosure checklist — exportable as a working Excel deliverable with a separate tab for each standard and a built-in overlap analysis.
             </p>
+            <p style={{ fontSize: 15, color: 'var(--ink-2)', lineHeight: 1.75, margin: '14px 0 0' }}>
+              Where the tool goes deeper than a checklist is <strong style={{ color: 'var(--ink)' }}>provenance</strong>. Under the hood, each recurring physical step — combustion, the cooling-water circuit, ash handling — is a reusable <em>unit-operation primitive</em> that carries the metrics it generates, with the physical mechanism, GHG scope, measurement method, data confidence and materiality of each. So a disclosure isn't just "required" — it's traced to the exact operation that produces the number and the meter that captures it. You pick a seat on entry — <strong style={{ color: 'var(--ink)' }}>disclosing company</strong> (where to collect it) or <strong style={{ color: 'var(--ink)' }}>analyst / assurer</strong> (whether to trust it) — and that lens follows you through.
+            </p>
           </div>
 
           <div style={{ marginBottom: 48 }}>
@@ -2391,7 +2472,7 @@ Company description:
                 { n: '01', t: 'Profile', d: 'Describe your operations — value chain position, generation mix, HQ and operating geographies, listing status, size tier, climate disclosure regime. The form runs live applicability checks as you fill it.' },
                 { n: '02', t: 'Archetypes', d: 'Manually select the utility archetypes that describe your business — coal thermal, renewable IPP, transmission, distribution, retail, integrated, EV charging, and so on. (Auto-matching is disabled in this build; the operator picks them.)' },
                 { n: '03', t: 'Architecture', d: 'See the stitched process architecture — every sub-process from every selected archetype, grouped and deduplicated. Edit action verbs, remove rows that don\'t apply.' },
-                { n: '04', t: 'Disclosures', d: 'A deterministic knowledge graph maps each sub-process to relevant disclosures, then filters by jurisdictional applicability. Output: a working Excel with separate tabs per standard, overlap analysis, and a data collection plan.' },
+                { n: '04', t: 'Disclosures', d: 'A deterministic knowledge graph maps each sub-process to relevant disclosures, filters by jurisdictional applicability, and traces each one back to the unit operation that generates it — with measurement method, data confidence and materiality. Output: a working Excel with a tab per standard, overlap analysis, a data-collection plan, and a node-provenance tab.' },
               ].map(s => (
                 <div key={s.n} style={{ display: 'grid', gridTemplateColumns: '60px 1fr', gap: 24, padding: '20px 24px', background: 'var(--bg-card)', border: '1px solid var(--line)', borderRadius: 4 }}>
                   <div className="display-font num" style={{ fontSize: 28, fontWeight: 500, color: 'var(--accent)', lineHeight: 1 }}>{s.n}</div>
@@ -2457,6 +2538,14 @@ Company description:
       {
         q: 'How does the tool decide which disclosures apply to me?',
         a: 'Two layers. First, every selected archetype carries a set of sub-process → disclosure mappings drawn from the knowledge graph — so picking "Coal-Fired Thermal" pulls in air emissions, water withdrawal, coal combustion residuals, and so on. Second, a jurisdictional filter strips out disclosures that don\'t apply given your HQ, operating geographies, listing status, and size tier — for example, BRSR only fires for India-listed entities, ESRS only for EU operators above the SME-Private threshold.'
+      },
+      {
+        q: 'What does "traced to a node" mean, and why do only some disclosures trace?',
+        a: 'Above the phase-level mapping sits a deeper layer: each recurring physical step — combustion, the cooling-water circuit, ash handling — is a reusable unit-operation primitive that carries the metrics it generates, with the physical mechanism, GHG scope, measurement method, data confidence and materiality of each. When a disclosure resolves to one of these operations, it is "traced" — you see the exact operation and the meter or record behind the number, and it ships in the Excel\'s Node Provenance tab. A single measurement often satisfies a whole family of framework codes (Scope 1 CO₂ answers GRI 305-1, SASB, ISSB, ESRS, BRSR and CDP at once). The Coal-Fired Thermal and CCGT archetypes are fully instrumented this way; cross-cutting governance and workforce disclosures stay phase-level because they belong to the whole organisation, not to a single operation.'
+      },
+      {
+        q: 'What are the two "seats" on the landing page?',
+        a: 'The same map, two lenses. A disclosing company wants to know where in the process each number is generated and which meter captures it; an analyst or assurer wants the provenance — the physical reason a figure should exist, how it was captured, and where the assurance risk sits. Your choice sets which field leads the node view and how the Origin column is framed. You can switch seats any time from the header without losing your inputs.'
       },
       {
         q: 'Do I pick archetypes by hand?',
@@ -2689,6 +2778,17 @@ Company description:
                         <div style={{ fontSize: 12.5, color: 'var(--ink-3)', lineHeight: 1.5 }}>
                           <span style={{ fontWeight: 600, color: 'var(--ink-3)' }}>Why here — </span>{m.mechanism}
                         </div>
+                        {/* Framework family — one measurement, many reports */}
+                        {m.also && m.also.length > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 5, marginTop: 7 }}>
+                            <span className="mono" style={{ fontSize: 9.5, color: 'var(--ink-4)', letterSpacing: '0.04em' }}>ONE NUMBER → {m.also.length + 1} FRAMEWORKS:</span>
+                            {[m.d, ...m.also].map(id => (
+                              <span key={id} className="mono" style={{ fontSize: 9.5, padding: '1px 5px', background: 'var(--bg)', color: 'var(--ink-3)', border: '1px solid var(--line)', borderRadius: 2 }}>
+                                {(DISCLOSURES[id]?.code || id).replace(' [VERIFY]', '')}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                         {/* Secondary field — the one the other audience leads with */}
                         <div className="mono" style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 6 }}>
                           {leadIsConf
