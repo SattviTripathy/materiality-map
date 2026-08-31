@@ -942,80 +942,196 @@
       },
     };
 
-    // The instrumentation itself. metrics[].d references a key in DISCLOSURES.
-    const NODE_INSTRUMENTATION = {
-      '1_Coal_Thermal': {
-        '1.1': [
-          { op: 'Procuring', primitive: 'fuel_sourcing',
-            metrics: [{ d: 'D-GRI-302-1', scope: 3, materiality: 'H', confidence: 'calculated',
-              mechanism: 'Coal tonnage received × gross calorific value = energy input — the denominator every downstream intensity divides by.',
-              measurement: 'Weighbridge tonnage × lab-assayed CV', source: 'Fuel procurement / weighbridge & coal-lab records' }] },
-          { op: 'Storing', primitive: 'fuel_storage',
-            metrics: [{ d: 'D-GRI-305-7', scope: 'env', materiality: 'L', confidence: 'estimated',
-              mechanism: 'Wind erosion of coal stockpiles and conveyor transfer points releases fugitive particulate (PM).',
-              measurement: 'Dust dispersion model (AP-42 emission factors)', source: 'Environmental engineering estimate' }] },
-          { op: 'Pulverizing', primitive: 'aux_power',
-            metrics: [{ d: 'D-GRI-302-1', scope: 2, materiality: 'M', confidence: 'measured',
-              mechanism: 'Mills grinding coal to face-powder fineness are a major parasitic (auxiliary) electrical load.',
-              measurement: 'Sub-metered mill motor kWh', source: 'Plant DCS / auxiliary power metering' }] },
+    // ----------------------------------------------------------------------------
+    // PRIMITIVES — the canonical unit-operation library. Each primitive is the
+    // metric knowledge for ONE recurring physical operation, authored and verified
+    // ONCE. A metric fires only when its `req` context tags are all present, so a
+    // single primitive yields a different metric set per fuel/config. This is what
+    // keeps the depth maintainable: `combustion` is written here once, not re-typed
+    // into every archetype that burns something.
+    //   metric fields: d (→DISCLOSURES), scope, materiality, confidence, mechanism,
+    //   measurement, source, and optional req[] (context tags gating the metric).
+    // ----------------------------------------------------------------------------
+    const PRIMITIVES = {
+      fuel_sourcing: {
+        label: 'Fuel sourcing', desc: 'Bringing a fuel to the asset boundary.',
+        metrics: [
+          { d: 'D-GRI-302-1', scope: 3, materiality: 'H', confidence: 'calculated',
+            mechanism: 'Fuel quantity × gross calorific value = energy input — the denominator every downstream intensity divides by.',
+            measurement: 'Metered quantity (weighbridge / gas flow) × lab-assayed CV', source: 'Fuel procurement & fuel-lab records' },
+          { d: 'D-GRI-305-3', scope: 3, materiality: 'M', confidence: 'estimated', req: ['upstream_ghg'],
+            mechanism: 'Upstream fuel-cycle emissions before the gate — coal-mine methane, or pipeline/LNG leakage for gas.',
+            measurement: 'Supplier data or fuel-cycle emission factor', source: 'Supplier disclosure / factor database' },
         ],
-        '1.2': [
-          { op: 'Igniting', primitive: 'combustion',
-            metrics: [{ d: 'D-GRI-305-7', scope: 'env', materiality: 'H', confidence: 'measured',
-              mechanism: 'Peak flame temperature fixes atmospheric N₂ into thermal NOx; fuel-bound nitrogen adds to it.',
-              measurement: 'Stack CEMS (NOx analyzer)', source: 'Continuous Emissions Monitoring System' }] },
-          { op: 'Burning', primitive: 'combustion',
-            metrics: [
-              { d: 'D-GRI-305-1', scope: 1, materiality: 'H', confidence: 'measured',
-                mechanism: 'Stoichiometric oxidation of fuel carbon (C + O₂ → CO₂). This single node is the dominant source of the whole asset’s footprint.',
-                measurement: 'CEMS stack CO₂, cross-checked by fuel-carbon mass balance', source: 'CEMS + fuel-carbon lab assay' },
-              { d: 'D-SASB-120a-1', scope: 'env', materiality: 'H', confidence: 'measured',
-                mechanism: 'Oxidation of fuel-bound sulfur yields SO₂; incomplete combustion & ash yield PM and trace Hg.',
-                measurement: 'Stack CEMS (SO₂, PM) + periodic Hg sorbent-trap', source: 'CEMS + stack-test lab' }] },
-          { op: 'Radiating', primitive: 'thermal_hazard',
-            metrics: [{ d: 'D-GRI-403-9', scope: 'env', materiality: 'M', confidence: 'measured',
-              mechanism: 'Furnace radiant zone is the plant’s highest thermal-burn and confined-space hazard exposure.',
-              measurement: 'Recordable-injury log (TRIR)', source: 'EHS incident management system' }] },
+      },
+      fuel_storage: {
+        label: 'Fuel storage & handling', desc: 'On-site storage and conveyance of solid fuel.',
+        metrics: [
+          { d: 'D-GRI-305-7', scope: 'env', materiality: 'L', confidence: 'estimated', req: ['dusty'],
+            mechanism: 'Wind erosion of stockpiles and conveyor transfer points releases fugitive particulate (PM).',
+            measurement: 'Dust dispersion model (AP-42 emission factors)', source: 'Environmental engineering estimate' },
         ],
-        '1.3': [
-          { op: 'Superheating', primitive: 'heat_transfer',
-            metrics: [{ d: 'D-GRI-302-1', scope: 1, materiality: 'M', confidence: 'measured',
-              mechanism: 'Boiler heat-transfer losses (flue-gas exit temp, radiation) set how much fuel energy never reaches the steam.',
-              measurement: 'Boiler efficiency by heat-loss method', source: 'Plant performance / DCS' }] },
-          { op: 'Expanding', primitive: 'energy_conversion',
-            metrics: [{ d: 'D-GRI-302-3', scope: 1, materiality: 'H', confidence: 'calculated',
-              mechanism: 'Turbine heat rate (fuel energy in ÷ electricity out) is the master efficiency lever — every 1% worse heat rate is ~1% more CO₂ per MWh.',
-              measurement: 'Heat rate = fuel energy input ÷ net generation', source: 'Fuel meters ÷ revenue meters' }] },
+      },
+      aux_power: {
+        label: 'Auxiliary power draw', desc: 'Parasitic electrical load of on-site equipment.',
+        metrics: [
+          { d: 'D-GRI-302-1', scope: 2, materiality: 'M', confidence: 'measured',
+            mechanism: 'Auxiliary equipment (mills, pumps, fans, precipitators) draws a parasitic load that reduces net export.',
+            measurement: 'Sub-metered auxiliary kWh', source: 'Plant DCS / auxiliary metering' },
         ],
-        '1.4': [
-          { op: 'Inducing', primitive: 'grid_export',
-            metrics: [{ d: 'D-GRI-EU2', scope: 'env', materiality: 'H', confidence: 'measured',
-              mechanism: 'Net electricity exported to the grid — the denominator for every per-MWh intensity metric.',
-              measurement: 'Revenue-grade export meter (gross minus parasitic)', source: 'Settlement / revenue metering' }] },
-          { op: 'Stepping-up', primitive: 'intensity_derived',
-            metrics: [{ d: 'D-GRI-305-4', scope: 1, materiality: 'H', confidence: 'calculated',
-              mechanism: 'Derived node: Scope 1 CO₂ (1.2 Burning) ÷ net export (1.4 Inducing). Not measured anywhere — assembled from two upstream nodes.',
-              measurement: 'Computed: 305-1 ÷ EU2', source: 'Derived KPI (no direct instrument)' }] },
+      },
+      combustion: {
+        label: 'Combustion', desc: 'Oxidation of a fuel to release heat. The emissions core of any thermal asset.',
+        metrics: [
+          { d: 'D-GRI-305-1', scope: 1, materiality: 'H', confidence: 'measured', req: ['carbon'],
+            mechanism: 'Stoichiometric oxidation of fuel carbon (C + O₂ → CO₂). This node is the dominant source of the whole asset’s footprint.',
+            measurement: 'CEMS stack CO₂, cross-checked by fuel-carbon mass balance', source: 'CEMS + fuel-carbon lab assay' },
+          { d: 'D-GRI-305-7', scope: 'env', materiality: 'H', confidence: 'measured',
+            mechanism: 'Peak flame temperature fixes atmospheric N₂ into thermal NOx; fuel-bound nitrogen adds to it.',
+            measurement: 'Stack CEMS (NOx analyzer)', source: 'Continuous Emissions Monitoring System' },
+          { d: 'D-SASB-120a-1', scope: 'env', materiality: 'H', confidence: 'measured', req: ['sulfur'],
+            mechanism: 'Oxidation of fuel-bound sulfur yields SO₂; ash & incomplete combustion yield PM and trace Hg. Absent in sulfur-free fuels.',
+            measurement: 'Stack CEMS (SO₂, PM) + periodic Hg sorbent-trap', source: 'CEMS + stack-test lab' },
+          { d: 'D-SASB-110a-1', scope: 1, materiality: 'M', confidence: 'measured', req: ['methane'],
+            mechanism: 'Unburned methane slipping through the turbine adds to gross Scope 1 at ~28–80× the GWP of CO₂ — material for gas, absent for solid fuels.',
+            measurement: 'Tunable-diode-laser or periodic exhaust sampling', source: 'Emissions monitoring / OGMP 2.0 reporting' },
         ],
-        '1.5': [
-          { op: 'Cooling', primitive: 'cooling_water',
-            metrics: [{ d: 'D-GRI-303-5', scope: 'env', materiality: 'H', confidence: 'calculated',
-              mechanism: 'Evaporative loss in the cooling tower is consumptive water use — irreversible, and acute in water-stressed basins.',
-              measurement: 'Make-up water metered minus blowdown metered', source: 'Water balance / flow meters' }] },
-          { op: 'Condensing', primitive: 'cooling_water',
-            metrics: [{ d: 'D-GRI-303-4', scope: 'env', materiality: 'M', confidence: 'measured',
-              mechanism: 'Condenser rejects waste heat to the discharge stream — a thermal-plume impact on the receiving water body.',
-              measurement: 'Discharge flow meter + outfall temperature', source: 'Effluent monitoring / consent point' }] },
-          { op: 'Pumping', primitive: 'aux_power',
-            metrics: [{ d: 'D-GRI-303-3', scope: 'env', materiality: 'M', confidence: 'measured',
-              mechanism: 'Circulating-water and feed pumps draw raw water (withdrawal) and add parasitic electrical load.',
-              measurement: 'Intake flow meter', source: 'Raw-water intake metering' }] },
+      },
+      thermal_hazard: {
+        label: 'Thermal hazard zone', desc: 'High-temperature radiant environment with worker exposure.',
+        metrics: [
+          { d: 'D-GRI-403-9', scope: 'env', materiality: 'M', confidence: 'measured',
+            mechanism: 'The radiant/hot-gas zone is the plant’s highest thermal-burn and confined-space hazard exposure.',
+            measurement: 'Recordable-injury log (TRIR)', source: 'EHS incident management system' },
+        ],
+      },
+      heat_transfer: {
+        label: 'Heat transfer', desc: 'Moving released heat into the working fluid (boiler / HRSG).',
+        metrics: [
+          { d: 'D-GRI-302-1', scope: 1, materiality: 'M', confidence: 'measured',
+            mechanism: 'Heat-transfer losses (flue-gas exit temp, radiation) set how much fuel energy never reaches the steam — wasted fuel is wasted Scope 1.',
+            measurement: 'Boiler/HRSG efficiency by heat-loss method', source: 'Plant performance / DCS' },
+        ],
+      },
+      energy_conversion: {
+        label: 'Energy conversion', desc: 'Converting thermal/mechanical energy to electrical output.',
+        metrics: [
+          { d: 'D-GRI-302-3', scope: 1, materiality: 'H', confidence: 'calculated',
+            mechanism: 'Heat rate (fuel energy in ÷ electricity out) is the master efficiency lever — every 1% worse heat rate is ~1% more CO₂ per MWh.',
+            measurement: 'Heat rate = fuel energy input ÷ net generation', source: 'Fuel meters ÷ revenue meters' },
+        ],
+      },
+      grid_export: {
+        label: 'Grid export', desc: 'Delivering net electricity to the grid.',
+        metrics: [
+          { d: 'D-GRI-EU2', scope: 'env', materiality: 'H', confidence: 'measured',
+            mechanism: 'Net electricity exported (gross minus parasitic) — the denominator for every per-MWh intensity metric.',
+            measurement: 'Revenue-grade export meter', source: 'Settlement / revenue metering' },
+        ],
+      },
+      intensity_derived: {
+        label: 'Derived intensity', desc: 'A KPI assembled from other nodes, measured nowhere directly.',
+        metrics: [
+          { d: 'D-GRI-305-4', scope: 1, materiality: 'H', confidence: 'calculated',
+            mechanism: 'Derived node: Scope 1 CO₂ (combustion) ÷ net export (grid export). Not measured anywhere — assembled from two upstream nodes, so its assurance inherits theirs.',
+            measurement: 'Computed: 305-1 ÷ EU2', source: 'Derived KPI (no direct instrument)' },
+        ],
+      },
+      cooling_water: {
+        label: 'Cooling-water circuit', desc: 'Rejecting condenser waste heat via a water loop.',
+        metrics: [
+          { d: 'D-GRI-303-3', scope: 'env', materiality: 'M', confidence: 'measured',
+            mechanism: 'Raw water withdrawn from the source for the cooling loop (once-through draw or recirculating make-up).',
+            measurement: 'Intake flow meter', source: 'Raw-water intake metering' },
+          { d: 'D-GRI-303-5', scope: 'env', materiality: 'H', confidence: 'calculated', req: ['evaporative'],
+            mechanism: 'Evaporative loss in the cooling tower is consumptive water use — irreversible, and acute in water-stressed basins.',
+            measurement: 'Make-up water metered minus blowdown metered', source: 'Water balance / flow meters' },
+          { d: 'D-GRI-303-4', scope: 'env', materiality: 'M', confidence: 'measured',
+            mechanism: 'Return flow rejects waste heat to the receiving water body — a thermal-plume impact at the outfall.',
+            measurement: 'Discharge flow meter + outfall temperature', source: 'Effluent monitoring / consent point' },
         ],
       },
     };
 
-    // Does a given archetype+sub_id have the deep layer authored yet?
-    const hasInstrumentation = (archId, subId) => !!(NODE_INSTRUMENTATION[archId] && NODE_INSTRUMENTATION[archId][subId]);
+    // ----------------------------------------------------------------------------
+    // PROCESS_NODES — composition. Each phase is a list of unit-operation nodes,
+    // and each node just NAMES a primitive plus the context tags that switch its
+    // metrics on/off. No metric text lives here — it all resolves from PRIMITIVES.
+    // Coal and CCGT below are both composed from the same library; note how the one
+    // `combustion` primitive yields SOx for coal (sulfur) and methane-slip for gas
+    // (methane), with no duplicated authoring.
+    // ----------------------------------------------------------------------------
+    const PROCESS_NODES = {
+      '1_Coal_Thermal': {
+        '1.1': [
+          { op: 'Procuring', primitive: 'fuel_sourcing', ctx: ['upstream_ghg'], note: 'Coal railed/trucked in; weighbridge tonnage × lab-assayed CV. Coal-mine methane sits upstream.' },
+          { op: 'Storing', primitive: 'fuel_storage', ctx: ['dusty'] },
+          { op: 'Pulverizing', primitive: 'aux_power', note: 'Mills grinding coal to face-powder fineness are a major parasitic load.' },
+        ],
+        '1.2': [
+          { op: 'Burning', primitive: 'combustion', ctx: ['carbon', 'sulfur'] },
+          { op: 'Radiating', primitive: 'thermal_hazard' },
+        ],
+        '1.3': [
+          { op: 'Superheating', primitive: 'heat_transfer' },
+          { op: 'Expanding', primitive: 'energy_conversion' },
+        ],
+        '1.4': [
+          { op: 'Inducing', primitive: 'grid_export' },
+          { op: 'Stepping-up', primitive: 'intensity_derived' },
+        ],
+        '1.5': [
+          { op: 'Cooling circuit', primitive: 'cooling_water', ctx: ['evaporative'], note: 'Recirculating wet cooling with a natural-draft tower.' },
+          { op: 'Pumping & fans', primitive: 'aux_power', note: 'Circulating-water pumps, ID/FD fans, ESP.' },
+        ],
+      },
+      '2_CCGT': {
+        '1.1': [
+          { op: 'Conditioning gas', primitive: 'fuel_sourcing', ctx: ['upstream_ghg'], note: 'Pipeline gas metered by volume × CV; upstream leakage is the material upstream term.' },
+        ],
+        '1.2': [
+          { op: 'Combusting', primitive: 'combustion', ctx: ['carbon', 'methane'], note: 'Lean pre-mixed gas-turbine combustion — no fuel sulfur, but unburned methane slip.' },
+        ],
+        '1.3': [
+          { op: 'Recovering heat', primitive: 'heat_transfer', note: 'Heat-recovery steam generator (HRSG) captures turbine exhaust.' },
+        ],
+        '1.4': [
+          { op: 'Expanding steam', primitive: 'energy_conversion' },
+          { op: 'Cooling circuit', primitive: 'cooling_water', ctx: ['evaporative'] },
+        ],
+        '1.5': [
+          { op: 'Exporting', primitive: 'grid_export' },
+          { op: 'Intensity', primitive: 'intensity_derived' },
+        ],
+      },
+    };
+
+    // ---- Engine: resolve composition against the primitive library ----
+    // A metric applies when every tag in its `req` is present in the node context.
+    const expandNodeMetrics = (node) => {
+      const prim = PRIMITIVES[node.primitive];
+      if (!prim) return [];
+      const ctx = node.ctx || [];
+      return prim.metrics.filter(m => (m.req || []).every(tag => ctx.includes(tag)));
+    };
+    // Full node objects for one phase, with primitive metadata + resolved metrics.
+    const getInstrumentedNodes = (archId, subId) =>
+      (PROCESS_NODES[archId]?.[subId] || []).map(n => ({
+        op: n.op, primitive: n.primitive, note: n.note,
+        meta: PRIMITIVES[n.primitive] || { label: n.primitive, desc: '' },
+        metrics: expandNodeMetrics(n),
+      }));
+    const hasInstrumentation = (archId, subId) => (PROCESS_NODES[archId]?.[subId]?.length || 0) > 0;
+
+    // How many phase-nodes reference each primitive — surfaces the dedup the
+    // library buys, shown as a "reused across the model" cue in the UI.
+    const PRIMITIVE_REUSE = (() => {
+      const c = {};
+      for (const arch of Object.values(PROCESS_NODES))
+        for (const nodes of Object.values(arch))
+          for (const n of nodes) c[n.primitive] = (c[n.primitive] || 0) + 1;
+      return c;
+    })();
 
     // ============================================================================
     // ENGINE LOGIC
@@ -2419,7 +2535,7 @@ Company description:
     // each, its mechanism, scope, measurement and confidence. Audience-aware.
     // ----------------------------------------------------------------------------
     function InstrumentationPanel({ archId, subId, audience }) {
-      const nodes = NODE_INSTRUMENTATION[archId]?.[subId] || [];
+      const nodes = getInstrumentedNodes(archId, subId);
       const aud = AUDIENCES[audience] || AUDIENCES.company;
       const confTone = { good: '#1f8a5b', mid: '#b57614', weak: 'var(--signal)' };
 
@@ -2435,9 +2551,20 @@ Company description:
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {nodes.map((node, ni) => (
               <div key={ni} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-                <div style={{ minWidth: 118, paddingTop: 2 }}>
+                <div style={{ width: 150, flexShrink: 0, paddingTop: 2 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{node.op}</div>
-                  <div className="mono" style={{ fontSize: 10, color: 'var(--ink-4)', marginTop: 2 }}>{node.primitive}</div>
+                  <div title={node.meta.desc} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 4, padding: '2px 6px', borderRadius: 3, background: 'var(--bg-card)', border: '1px solid var(--line)', cursor: 'help' }}>
+                    <Layers size={10} color="var(--ink-4)" />
+                    <span className="mono" style={{ fontSize: 9.5, color: 'var(--ink-3)', fontWeight: 600 }}>{node.meta.label}</span>
+                  </div>
+                  {PRIMITIVE_REUSE[node.primitive] > 1 && (
+                    <div className="mono" title="This primitive is authored once and reused across the model" style={{ fontSize: 9, color: 'var(--ink-4)', marginTop: 4, letterSpacing: '0.03em' }}>
+                      reused ×{PRIMITIVE_REUSE[node.primitive]}
+                    </div>
+                  )}
+                  {node.note && (
+                    <div style={{ fontSize: 10.5, color: 'var(--ink-4)', marginTop: 6, lineHeight: 1.4, fontStyle: 'italic' }}>{node.note}</div>
+                  )}
                 </div>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, borderLeft: '2px solid var(--line)', paddingLeft: 14 }}>
                   {node.metrics.map((m, mi) => {
