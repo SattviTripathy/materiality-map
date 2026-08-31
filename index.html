@@ -16,6 +16,18 @@
 
   <!-- Babel standalone for in-browser JSX compilation -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script>
+    // Force the CLASSIC JSX runtime (React.createElement against the global React
+    // UMD build). Current @babel/standalone defaults the "react" preset to the
+    // automatic runtime, which emits a bare `import ... from "react/jsx-runtime"`
+    // that has no module to resolve here and blanks the page. Registering our own
+    // preset pins runtime:"classic" and never sets importSource.
+    if (window.Babel) {
+      Babel.registerPreset('react-classic', {
+        presets: [[Babel.availablePresets.react, { runtime: 'classic' }]],
+      });
+    }
+  </script>
 
   <!-- SheetJS for Excel export -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -279,7 +291,11 @@
   <div id="root"></div>
 
   <!-- The application code, compiled in-browser by Babel -->
-  <script type="text/babel" data-type="module" data-presets="react">
+  <script type="text/babel" data-presets="react-classic">
+    // Non-module output: this app relies on the global React / ReactDOM UMD builds,
+    // not ES imports. The original data-type="module" attribute forced module output,
+    // which under current @babel/standalone emitted an unresolvable
+    // `react/jsx-runtime` import and blanked the page — removed.
     const { useState, useMemo, useEffect, useRef, useCallback, Fragment } = React;
 
     // ============================================================================
@@ -868,6 +884,138 @@
         '3.4': ['D-GRI-418-1', 'D-SASB-550a-2'],
       },
     };
+
+    // ============================================================================
+    // DATA: NODE-LEVEL INSTRUMENTATION  (deep-decomposition layer)
+    // ----------------------------------------------------------------------------
+    // The phase-level MAPPINGS above answer "which disclosures touch this phase?".
+    // This layer goes one level deeper: it promotes each verb in a phase into a
+    // first-class *unit operation* (node) and attaches, per node, the specific
+    // metric that ORIGINATES there — with its physical mechanism, GHG scope,
+    // measurement method, data-confidence tier, and materiality weight.
+    //
+    // Proof slice: 1_Coal_Thermal, process 1.0 (Power Generation Cycle), 1.1–1.5.
+    // If this reads as expert, the same shape generalises by extracting the
+    // recurring `primitive` nodes into a reusable library (see combustion, cooling,
+    // grid_export — they recur across nearly every archetype).
+    // ============================================================================
+
+    // Data-confidence tiers — the assurance-readiness axis. Ranked so a phase can
+    // be sorted by its weakest link (an estimated metric is the assurance risk).
+    const CONFIDENCE = {
+      measured:   { rank: 3, label: 'Directly measured', tone: 'good',   assurer: 'Instrument reading — reasonable-assurance ready.', company: 'Read straight off the instrument; no calculation needed.' },
+      calculated: { rank: 2, label: 'Calculated',        tone: 'mid',    assurer: 'Activity data × factor — verify the factor vintage & method.', company: 'Derived: multiply your activity data by a published factor.' },
+      estimated:  { rank: 1, label: 'Estimated / proxy', tone: 'weak',   assurer: 'Engineering estimate or proxy — the assurance weak point.', company: 'No direct meter yet; a proxy stands in. Flag for improvement.' },
+    };
+
+    // Materiality weight — order-of-magnitude contribution to the archetype's
+    // footprint for this topic. Turns a long checklist into a ranked map.
+    const MATERIALITY = {
+      H: { rank: 3, label: 'High',   note: 'Drives the bulk of the impact — instrument first.' },
+      M: { rank: 2, label: 'Medium', note: 'Material but secondary.' },
+      L: { rank: 1, label: 'Low',    note: 'Report for completeness.' },
+    };
+
+    // GHG / boundary tag per node — lets the process map double as a Scope diagram.
+    const SCOPE_META = {
+      1:     { label: 'Scope 1', desc: 'Direct — combustion & process emissions on-site.' },
+      2:     { label: 'Scope 2', desc: 'Indirect — purchased electricity / parasitic load.' },
+      3:     { label: 'Scope 3', desc: 'Value chain — upstream fuel, downstream, transport.' },
+      'env': { label: 'Non-GHG', desc: 'Water, waste, air pollutant or safety — no GHG scope.' },
+    };
+
+    // Audience framing. Same nodes, different lead. A disclosing company wants to
+    // know WHERE to collect the number; an analyst/assurer wants to know whether
+    // the number can be TRUSTED. The gate sets this once on entry.
+    const AUDIENCES = {
+      company: {
+        id: 'company', label: 'Disclosing company',
+        tagline: 'Build my Scope boundary & data-collection map',
+        blurb: 'You run (or report for) the asset. You want to know, for each metric, exactly where in the process it is generated and which meter or record captures it.',
+        leadField: 'measurement', accent: 'var(--accent)',
+      },
+      assurer: {
+        id: 'assurer', label: 'Analyst / Assurer',
+        tagline: 'Audit where each number comes from',
+        blurb: 'You review someone else’s numbers. You want the provenance chain — the physical reason a figure should exist, how it was captured, and where the assurance risk sits.',
+        leadField: 'confidence', accent: '#7c5cff',
+      },
+    };
+
+    // The instrumentation itself. metrics[].d references a key in DISCLOSURES.
+    const NODE_INSTRUMENTATION = {
+      '1_Coal_Thermal': {
+        '1.1': [
+          { op: 'Procuring', primitive: 'fuel_sourcing',
+            metrics: [{ d: 'D-GRI-302-1', scope: 3, materiality: 'H', confidence: 'calculated',
+              mechanism: 'Coal tonnage received × gross calorific value = energy input — the denominator every downstream intensity divides by.',
+              measurement: 'Weighbridge tonnage × lab-assayed CV', source: 'Fuel procurement / weighbridge & coal-lab records' }] },
+          { op: 'Storing', primitive: 'fuel_storage',
+            metrics: [{ d: 'D-GRI-305-7', scope: 'env', materiality: 'L', confidence: 'estimated',
+              mechanism: 'Wind erosion of coal stockpiles and conveyor transfer points releases fugitive particulate (PM).',
+              measurement: 'Dust dispersion model (AP-42 emission factors)', source: 'Environmental engineering estimate' }] },
+          { op: 'Pulverizing', primitive: 'aux_power',
+            metrics: [{ d: 'D-GRI-302-1', scope: 2, materiality: 'M', confidence: 'measured',
+              mechanism: 'Mills grinding coal to face-powder fineness are a major parasitic (auxiliary) electrical load.',
+              measurement: 'Sub-metered mill motor kWh', source: 'Plant DCS / auxiliary power metering' }] },
+        ],
+        '1.2': [
+          { op: 'Igniting', primitive: 'combustion',
+            metrics: [{ d: 'D-GRI-305-7', scope: 'env', materiality: 'H', confidence: 'measured',
+              mechanism: 'Peak flame temperature fixes atmospheric N₂ into thermal NOx; fuel-bound nitrogen adds to it.',
+              measurement: 'Stack CEMS (NOx analyzer)', source: 'Continuous Emissions Monitoring System' }] },
+          { op: 'Burning', primitive: 'combustion',
+            metrics: [
+              { d: 'D-GRI-305-1', scope: 1, materiality: 'H', confidence: 'measured',
+                mechanism: 'Stoichiometric oxidation of fuel carbon (C + O₂ → CO₂). This single node is the dominant source of the whole asset’s footprint.',
+                measurement: 'CEMS stack CO₂, cross-checked by fuel-carbon mass balance', source: 'CEMS + fuel-carbon lab assay' },
+              { d: 'D-SASB-120a-1', scope: 'env', materiality: 'H', confidence: 'measured',
+                mechanism: 'Oxidation of fuel-bound sulfur yields SO₂; incomplete combustion & ash yield PM and trace Hg.',
+                measurement: 'Stack CEMS (SO₂, PM) + periodic Hg sorbent-trap', source: 'CEMS + stack-test lab' }] },
+          { op: 'Radiating', primitive: 'thermal_hazard',
+            metrics: [{ d: 'D-GRI-403-9', scope: 'env', materiality: 'M', confidence: 'measured',
+              mechanism: 'Furnace radiant zone is the plant’s highest thermal-burn and confined-space hazard exposure.',
+              measurement: 'Recordable-injury log (TRIR)', source: 'EHS incident management system' }] },
+        ],
+        '1.3': [
+          { op: 'Superheating', primitive: 'heat_transfer',
+            metrics: [{ d: 'D-GRI-302-1', scope: 1, materiality: 'M', confidence: 'measured',
+              mechanism: 'Boiler heat-transfer losses (flue-gas exit temp, radiation) set how much fuel energy never reaches the steam.',
+              measurement: 'Boiler efficiency by heat-loss method', source: 'Plant performance / DCS' }] },
+          { op: 'Expanding', primitive: 'energy_conversion',
+            metrics: [{ d: 'D-GRI-302-3', scope: 1, materiality: 'H', confidence: 'calculated',
+              mechanism: 'Turbine heat rate (fuel energy in ÷ electricity out) is the master efficiency lever — every 1% worse heat rate is ~1% more CO₂ per MWh.',
+              measurement: 'Heat rate = fuel energy input ÷ net generation', source: 'Fuel meters ÷ revenue meters' }] },
+        ],
+        '1.4': [
+          { op: 'Inducing', primitive: 'grid_export',
+            metrics: [{ d: 'D-GRI-EU2', scope: 'env', materiality: 'H', confidence: 'measured',
+              mechanism: 'Net electricity exported to the grid — the denominator for every per-MWh intensity metric.',
+              measurement: 'Revenue-grade export meter (gross minus parasitic)', source: 'Settlement / revenue metering' }] },
+          { op: 'Stepping-up', primitive: 'intensity_derived',
+            metrics: [{ d: 'D-GRI-305-4', scope: 1, materiality: 'H', confidence: 'calculated',
+              mechanism: 'Derived node: Scope 1 CO₂ (1.2 Burning) ÷ net export (1.4 Inducing). Not measured anywhere — assembled from two upstream nodes.',
+              measurement: 'Computed: 305-1 ÷ EU2', source: 'Derived KPI (no direct instrument)' }] },
+        ],
+        '1.5': [
+          { op: 'Cooling', primitive: 'cooling_water',
+            metrics: [{ d: 'D-GRI-303-5', scope: 'env', materiality: 'H', confidence: 'calculated',
+              mechanism: 'Evaporative loss in the cooling tower is consumptive water use — irreversible, and acute in water-stressed basins.',
+              measurement: 'Make-up water metered minus blowdown metered', source: 'Water balance / flow meters' }] },
+          { op: 'Condensing', primitive: 'cooling_water',
+            metrics: [{ d: 'D-GRI-303-4', scope: 'env', materiality: 'M', confidence: 'measured',
+              mechanism: 'Condenser rejects waste heat to the discharge stream — a thermal-plume impact on the receiving water body.',
+              measurement: 'Discharge flow meter + outfall temperature', source: 'Effluent monitoring / consent point' }] },
+          { op: 'Pumping', primitive: 'aux_power',
+            metrics: [{ d: 'D-GRI-303-3', scope: 'env', materiality: 'M', confidence: 'measured',
+              mechanism: 'Circulating-water and feed pumps draw raw water (withdrawal) and add parasitic electrical load.',
+              measurement: 'Intake flow meter', source: 'Raw-water intake metering' }] },
+        ],
+      },
+    };
+
+    // Does a given archetype+sub_id have the deep layer authored yet?
+    const hasInstrumentation = (archId, subId) => !!(NODE_INSTRUMENTATION[archId] && NODE_INSTRUMENTATION[archId][subId]);
 
     // ============================================================================
     // ENGINE LOGIC
@@ -1629,8 +1777,11 @@ Company description:
       );
     }
 
-    function ArchitectureEditor({ architecture, setArchitecture, onBack, onNext }) {
+    function ArchitectureEditor({ architecture, setArchitecture, audience, onBack, onNext }) {
       const [editingRow, setEditingRow] = useState(null);
+      const [expanded, setExpanded] = useState({});
+      const toggleExpand = (rowId) => setExpanded(e => ({ ...e, [rowId]: !e[rowId] }));
+      const instrumentedCount = architecture.filter(r => hasInstrumentation(r.source_archetype, r.sub_id)).length;
 
       const removeRow = (rowId) => setArchitecture(a => a.filter(r => r.row_id !== rowId));
       const updateRowVerbs = (rowId, verbs) => setArchitecture(a => a.map(r => r.row_id === rowId ? { ...r, verbs } : r));
@@ -1664,6 +1815,15 @@ Company description:
               This is your operational map — the basis for every disclosure recommendation that follows.
               Edit action verbs or remove rows that don't apply to your business before continuing.
             </p>
+            {instrumentedCount > 0 && (
+              <div style={{ marginTop: 16, display: 'flex', alignItems: 'flex-start', gap: 10, background: 'var(--bg-card)', border: '1px solid var(--line)', borderLeft: `3px solid ${AUDIENCES[audience]?.accent}`, borderRadius: 3, padding: '12px 14px', maxWidth: 720 }}>
+                <Layers size={15} color={AUDIENCES[audience]?.accent} />
+                <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>
+                  <strong style={{ color: 'var(--ink)' }}>{instrumentedCount} phase{instrumentedCount === 1 ? '' : 's'} go{instrumentedCount === 1 ? 'es' : ''} deeper.</strong> Look for the <span className="mono" style={{ fontSize: 10, color: 'var(--accent)', border: '1px solid var(--accent)', borderRadius: 3, padding: '0 4px' }}>INSTRUMENTED</span> tag and hit <em>Instrument</em> to drop from the phase to the exact unit operation that generates each metric —{' '}
+                  {audience === 'assurer' ? 'with the provenance chain and where the assurance risk sits.' : 'with the meter or record that captures it.'}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="scrollarea" style={{ marginBottom: 32 }}>
@@ -1686,35 +1846,52 @@ Company description:
               }
               const row = item.row;
               const isEditing = editingRow === row.row_id;
+              const canInstrument = hasInstrumentation(row.source_archetype, row.sub_id);
+              const isOpen = !!expanded[row.row_id];
               return (
-                <div key={row.row_id} className="arc-row">
-                  <div className="mono" style={{ fontSize: 12, color: 'var(--ink-4)', minWidth: 32, paddingTop: 2 }}>{row.sub_id}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 4 }}>{row.phase}</div>
-                    {isEditing ? (
-                      <input
-                        className="field-input"
-                        style={{ fontSize: 13, padding: '8px 10px' }}
-                        value={row.verbs}
-                        onChange={e => updateRowVerbs(row.row_id, e.target.value)}
-                        onBlur={() => setEditingRow(null)}
-                        onKeyDown={e => { if (e.key === 'Enter') setEditingRow(null); }}
-                        autoFocus
-                      />
-                    ) : (
-                      <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5 }}>
-                        {row.verbs}
+                <div key={row.row_id}>
+                  <div className="arc-row" style={canInstrument && isOpen ? { background: 'var(--bg)' } : undefined}>
+                    <div className="mono" style={{ fontSize: 12, color: 'var(--ink-4)', minWidth: 32, paddingTop: 2 }}>{row.sub_id}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {row.phase}
+                        {canInstrument && (
+                          <span className="mono" style={{ fontSize: 9.5, fontWeight: 600, letterSpacing: '0.05em', color: 'var(--accent)', border: '1px solid var(--accent)', borderRadius: 3, padding: '1px 5px', opacity: 0.9 }}>INSTRUMENTED</span>
+                        )}
                       </div>
-                    )}
+                      {isEditing ? (
+                        <input
+                          className="field-input"
+                          style={{ fontSize: 13, padding: '8px 10px' }}
+                          value={row.verbs}
+                          onChange={e => updateRowVerbs(row.row_id, e.target.value)}
+                          onBlur={() => setEditingRow(null)}
+                          onKeyDown={e => { if (e.key === 'Enter') setEditingRow(null); }}
+                          autoFocus
+                        />
+                      ) : (
+                        <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+                          {row.verbs}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      {canInstrument && (
+                        <button className="btn-ghost" title="Show node-level metric instrumentation" onClick={() => toggleExpand(row.row_id)} style={{ color: 'var(--accent)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+                          <Layers size={13} /> {isOpen ? 'Hide' : 'Instrument'}
+                        </button>
+                      )}
+                      <button className="btn-ghost" title="Edit verbs" onClick={() => setEditingRow(row.row_id)}>
+                        <Edit2 size={13} />
+                      </button>
+                      <button className="btn-ghost" title="Remove" onClick={() => removeRow(row.row_id)} style={{ color: 'var(--signal)' }}>
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    <button className="btn-ghost" title="Edit verbs" onClick={() => setEditingRow(row.row_id)}>
-                      <Edit2 size={13} />
-                    </button>
-                    <button className="btn-ghost" title="Remove" onClick={() => removeRow(row.row_id)} style={{ color: 'var(--signal)' }}>
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
+                  {canInstrument && isOpen && (
+                    <InstrumentationPanel archId={row.source_archetype} subId={row.sub_id} audience={audience} />
+                  )}
                 </div>
               );
             })}
@@ -2196,8 +2373,126 @@ Company description:
     // MAIN APP
     // ============================================================================
 
+    // ----------------------------------------------------------------------------
+    // AudienceGate — the entry fork. Same engine, two lenses. Sets which field
+    // leads the instrumentation view and how it is framed.
+    // ----------------------------------------------------------------------------
+    function AudienceGate({ onPick }) {
+      return (
+        <div className="fade-in" style={{ maxWidth: 880, margin: '0 auto', paddingTop: 24 }}>
+          <div style={{ marginBottom: 40 }}>
+            <div className="mono" style={{ fontSize: 12, color: 'var(--ink-4)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>Before we start</div>
+            <h1 className="display-font" style={{ fontSize: 40, fontWeight: 400, lineHeight: 1.12, marginBottom: 12, color: 'var(--ink)' }}>
+              Which seat are you <span style={{ color: 'var(--accent)', fontWeight: 500 }}>sitting in?</span>
+            </h1>
+            <p style={{ fontSize: 16, color: 'var(--ink-3)', maxWidth: 640, lineHeight: 1.6 }}>
+              The map is the same. What changes is what we put first when we take a metric down to the exact step in your process that generates it.
+            </p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+            {Object.values(AUDIENCES).map(a => (
+              <button key={a.id} onClick={() => onPick(a.id)}
+                className="audience-card"
+                style={{ textAlign: 'left', background: 'var(--bg-card)', border: '1px solid var(--line)', borderRadius: 4, padding: '28px 26px', cursor: 'pointer', transition: 'border-color .15s, transform .15s, box-shadow .15s', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: 10, background: a.accent }} />
+                  <span className="display-font" style={{ fontSize: 22, fontWeight: 500, color: 'var(--ink)' }}>{a.label}</span>
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: a.accent }}>{a.tagline}</div>
+                <div style={{ fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.55 }}>{a.blurb}</div>
+                <div className="mono" style={{ marginTop: 6, fontSize: 12, color: 'var(--ink-4)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  Continue as {a.label.toLowerCase()} <ChevronRight size={13} />
+                </div>
+              </button>
+            ))}
+          </div>
+          <p style={{ fontSize: 12.5, color: 'var(--ink-4)', marginTop: 22, lineHeight: 1.5 }}>
+            You can switch seats any time from the header. Nothing you enter is lost when you do.
+          </p>
+        </div>
+      );
+    }
+
+    // ----------------------------------------------------------------------------
+    // InstrumentationPanel — the deep-decomposition payload. Renders the atomic
+    // unit-operation nodes under one phase, with the metric that originates at
+    // each, its mechanism, scope, measurement and confidence. Audience-aware.
+    // ----------------------------------------------------------------------------
+    function InstrumentationPanel({ archId, subId, audience }) {
+      const nodes = NODE_INSTRUMENTATION[archId]?.[subId] || [];
+      const aud = AUDIENCES[audience] || AUDIENCES.company;
+      const confTone = { good: '#1f8a5b', mid: '#b57614', weak: 'var(--signal)' };
+
+      const Chip = ({ children, color, bg, title }) => (
+        <span title={title} className="mono" style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: '0.04em', padding: '2px 7px', borderRadius: 3, color: color, background: bg, whiteSpace: 'nowrap' }}>{children}</span>
+      );
+
+      return (
+        <div style={{ background: 'var(--bg)', borderTop: '1px dashed var(--line)', padding: '4px 0 8px 44px' }}>
+          <div className="mono" style={{ fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-4)', padding: '12px 0 8px' }}>
+            {aud.id === 'assurer' ? 'Provenance — where each number comes from' : 'Data-collection map — where each number is generated'}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {nodes.map((node, ni) => (
+              <div key={ni} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                <div style={{ minWidth: 118, paddingTop: 2 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{node.op}</div>
+                  <div className="mono" style={{ fontSize: 10, color: 'var(--ink-4)', marginTop: 2 }}>{node.primitive}</div>
+                </div>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, borderLeft: '2px solid var(--line)', paddingLeft: 14 }}>
+                  {node.metrics.map((m, mi) => {
+                    const disc = DISCLOSURES[m.d] || {};
+                    const conf = CONFIDENCE[m.confidence];
+                    const mat = MATERIALITY[m.materiality];
+                    const scope = SCOPE_META[m.scope];
+                    const leadIsConf = aud.leadField === 'confidence';
+                    return (
+                      <div key={mi} style={{ background: 'var(--bg-card)', border: '1px solid var(--line)', borderLeft: `3px solid ${aud.accent}`, borderRadius: 3, padding: '11px 13px' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 7 }}>
+                          <span className="mono" style={{ fontSize: 11, fontWeight: 700, color: aud.accent }}>{disc.code || m.d}</span>
+                          <span style={{ fontSize: 12.5, color: 'var(--ink-2)', fontWeight: 600 }}>{disc.name}</span>
+                          <span style={{ flex: 1 }} />
+                          <Chip color="#fff" bg={m.materiality === 'H' ? 'var(--ink)' : m.materiality === 'M' ? 'var(--ink-3)' : 'var(--ink-4)'} title={mat.note}>{mat.label} materiality</Chip>
+                          <Chip color="var(--ink-3)" bg="var(--bg)" title={scope.desc}>{scope.label}</Chip>
+                        </div>
+                        {/* Lead field — flips by audience */}
+                        {leadIsConf ? (
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', marginBottom: 5 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: 8, background: confTone[conf.tone], display: 'inline-block', flexShrink: 0, transform: 'translateY(1px)' }} />
+                            <div style={{ fontSize: 13, color: 'var(--ink)' }}>
+                              <strong style={{ color: confTone[conf.tone] }}>{conf.label}.</strong> {conf.assurer}
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: 13, color: 'var(--ink)', marginBottom: 5 }}>
+                            <strong style={{ color: aud.accent }}>Capture:</strong> {m.measurement} <span style={{ color: 'var(--ink-4)' }}>· {m.source}</span>
+                          </div>
+                        )}
+                        {/* Mechanism — always shown; it is the reason the metric exists here */}
+                        <div style={{ fontSize: 12.5, color: 'var(--ink-3)', lineHeight: 1.5 }}>
+                          <span style={{ fontWeight: 600, color: 'var(--ink-3)' }}>Why here — </span>{m.mechanism}
+                        </div>
+                        {/* Secondary field — the one the other audience leads with */}
+                        <div className="mono" style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 6 }}>
+                          {leadIsConf
+                            ? <>capture: {m.measurement} · {m.source}</>
+                            : <>confidence: <span style={{ color: confTone[conf.tone] }}>{conf.label}</span> · {conf.company}</>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
     function App() {
       const [view, setView] = useState('tool'); // 'tool' | 'about' | 'faq'
+      const [audience, setAudience] = useState(() => { try { return localStorage.getItem('mm_audience'); } catch (e) { return null; } });
+      const pickAudience = (id) => { setAudience(id); try { localStorage.setItem('mm_audience', id); } catch (e) {} window.scrollTo({ top: 0, behavior: 'smooth' }); };
       const [stage, setStage] = useState(1);
       const [profile, setProfile] = useState({
         company_name: '',
@@ -2320,17 +2615,25 @@ Company description:
                 ))}
               </nav>
               <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
+                {view === 'tool' && audience && (
+                  <button className="btn-ghost" title="Switch audience" onClick={() => setAudience(null)}
+                    style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 7, padding: '6px 12px', border: '1px solid var(--line)', borderRadius: 20 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 8, background: AUDIENCES[audience]?.accent }} />
+                    {AUDIENCES[audience]?.label}
+                    <span className="mono" style={{ fontSize: 10, color: 'var(--ink-4)' }}>switch</span>
+                  </button>
+                )}
                 <div className="mono nav-hide" style={{ fontSize: 13, color: 'var(--ink-4)', letterSpacing: '0.04em' }}>
-                  v5 · {Object.keys(ARCHETYPES).length} archetypes · {Object.keys(DISCLOSURES).length} indicators
+                  v6 · {Object.keys(ARCHETYPES).length} archetypes · {Object.keys(DISCLOSURES).length} indicators
                 </div>
-                {view === 'tool' && stage > 1 && (
+                {view === 'tool' && audience && stage > 1 && (
                   <button className="btn-ghost" onClick={reset} style={{ fontSize: 14 }}>Reset</button>
                 )}
               </div>
             </div>
           </header>
 
-          {view === 'tool' && (
+          {view === 'tool' && audience && (
             <div className="stage-pad" style={{ maxWidth: 1280, margin: '0 auto', padding: '0 32px' }}>
               <StageIndicator current={stage} onJump={jumpToStage} />
             </div>
@@ -2340,7 +2643,9 @@ Company description:
             {view === 'about' && <AboutPage onStart={() => setView('tool')} />}
             {view === 'faq' && <FAQPage onStart={() => setView('tool')} />}
 
-            {view === 'tool' && stage === 1 && (
+            {view === 'tool' && !audience && <AudienceGate onPick={pickAudience} />}
+
+            {view === 'tool' && audience && stage === 1 && (
               <ProfileForm
                 profile={profile}
                 updateProfile={updateProfile}
@@ -2351,7 +2656,7 @@ Company description:
               />
             )}
 
-            {view === 'tool' && stage === 2 && (
+            {view === 'tool' && audience && stage === 2 && (
               <ArchetypeSelection
                 selected={selectedArchetypes}
                 setSelected={setSelectedArchetypes}
@@ -2361,16 +2666,17 @@ Company description:
               />
             )}
 
-            {view === 'tool' && stage === 3 && (
+            {view === 'tool' && audience && stage === 3 && (
               <ArchitectureEditor
                 architecture={architecture}
                 setArchitecture={setArchitecture}
+                audience={audience}
                 onBack={goBack}
                 onNext={proceedToStage4}
               />
             )}
 
-            {view === 'tool' && stage === 4 && (
+            {view === 'tool' && audience && stage === 4 && (
               <DisclosureResults
                 hits={hits}
                 profile={profile}
