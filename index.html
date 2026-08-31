@@ -1133,6 +1133,24 @@
       return c;
     })();
 
+    // Trace one phase-level disclosure back to the exact unit-operation node that
+    // generates it, if the deep layer has been authored for that phase. This is the
+    // bridge that carries node depth into the stage-4 checklist and the Excel export:
+    // a disclosure that resolves to a node gains its mechanism, measurement, data
+    // source, confidence and node-materiality; one that doesn't stays phase-level.
+    const nodeProvenanceFor = (archId, subId, did) => {
+      const nodes = getInstrumentedNodes(archId, subId);
+      for (const node of nodes) {
+        const m = node.metrics.find(mm => mm.d === did);
+        if (m) return {
+          op: node.op, primitive: node.primitive, primitiveLabel: node.meta.label,
+          mechanism: m.mechanism, measurement: m.measurement, dataSource: m.source,
+          confidence: m.confidence, scope: m.scope, materiality: m.materiality,
+        };
+      }
+      return null;
+    };
+
     // ============================================================================
     // ENGINE LOGIC
     // ============================================================================
@@ -1278,6 +1296,7 @@
             pillar: disc.pillar,
             mandatory: isMandatory(did, profile),
             source: 'knowledge_graph',
+            provenance: nodeProvenanceFor(row.source_archetype, row.sub_id, did),
           });
         }
       }
@@ -1341,8 +1360,8 @@
         ['About Us (excerpt)', (profile.about_us_text || '').slice(0, 500)],
         ['', ''],
         ['Generated', new Date().toISOString()],
-        ['Library Version', 'v5'],
-        ['Knowledge Graph Version', 'v5'],
+        ['Library Version', 'v6 (node-instrumented)'],
+        ['Knowledge Graph Version', 'v6'],
       ];
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(profileRows), 'Company Profile');
 
@@ -1352,11 +1371,32 @@
       }
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(archRows), 'Process Architecture');
 
-      const mapRows = [['Process', 'Sub-Process Phase', 'Sub-ID', 'Archetype', 'Standard', 'Code', 'Indicator', 'Unit', 'Pillar', 'Mandatory', 'Data Owner', 'Status']];
+      const CONF_LABEL = { measured: 'Directly measured', calculated: 'Calculated', estimated: 'Estimated / proxy' };
+      const SCOPE_LABEL = { 1: 'Scope 1', 2: 'Scope 2', 3: 'Scope 3', env: 'Non-GHG' };
+      const MAT_LABEL = { H: 'High', M: 'Medium', L: 'Low' };
+
+      const mapRows = [['Process', 'Sub-Process Phase', 'Sub-ID', 'Archetype', 'Standard', 'Code', 'Indicator', 'Unit', 'Pillar', 'Mandatory',
+        'Unit Operation', 'Primitive', 'GHG Scope', 'Node Materiality', 'Measurement Method', 'Data Source', 'Data Confidence', 'Why Generated Here', 'Status']];
       for (const hit of allHits) {
-        mapRows.push([hit.process_name, hit.phase, hit.sub_id, hit.archetype, hit.standard, hit.code, hit.name, hit.unit, hit.pillar, hit.mandatory ? 'Mandatory' : 'Voluntary', '', 'Not Started']);
+        const p = hit.provenance;
+        mapRows.push([hit.process_name, hit.phase, hit.sub_id, hit.archetype, hit.standard, hit.code, hit.name, hit.unit, hit.pillar, hit.mandatory ? 'Mandatory' : 'Voluntary',
+          p ? p.op : '', p ? p.primitiveLabel : '', p ? (SCOPE_LABEL[p.scope] || '') : '', p ? (MAT_LABEL[p.materiality] || '') : '',
+          p ? p.measurement : '', p ? p.dataSource : '', p ? (CONF_LABEL[p.confidence] || '') : '', p ? p.mechanism : '', 'Not Started']);
       }
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(mapRows), 'Disclosure Map');
+
+      // Node Provenance — the deep artifact: only the disclosures traced to a
+      // specific unit operation, with the full origin chain. This is what did not
+      // exist before the primitive library reached the deliverable.
+      const provHits = allHits.filter(h => h.provenance);
+      const provRows = [['Standard', 'Code', 'Indicator', 'Unit', 'Archetype', 'Process', 'Sub-ID',
+        'Unit Operation', 'Primitive', 'GHG Scope', 'Node Materiality', 'Measurement Method', 'Data Source', 'Data Confidence', 'Why Generated Here']];
+      for (const hit of provHits) {
+        const p = hit.provenance;
+        provRows.push([hit.standard, hit.code, hit.name, hit.unit, hit.archetype, hit.process_name, hit.sub_id,
+          p.op, p.primitiveLabel, SCOPE_LABEL[p.scope] || '', MAT_LABEL[p.materiality] || '', p.measurement, p.dataSource, CONF_LABEL[p.confidence] || '', p.mechanism]);
+      }
+      if (provHits.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(provRows), 'Node Provenance');
 
       const standards = [...new Set(allHits.map(h => h.standard))];
       for (const std of standards) {
@@ -1385,12 +1425,18 @@
       const uniquePoints = new Map();
       for (const hit of allHits) {
         const key = `${hit.name}|${hit.unit}`;
-        if (!uniquePoints.has(key)) uniquePoints.set(key, { name: hit.name, unit: hit.unit, standards: new Set() });
-        uniquePoints.get(key).standards.add(hit.standard);
+        if (!uniquePoints.has(key)) uniquePoints.set(key, { name: hit.name, unit: hit.unit, standards: new Set(), prov: null });
+        const e = uniquePoints.get(key);
+        e.standards.add(hit.standard);
+        // First traced hit for this data point supplies the collection detail —
+        // the node instrumentation fills what used to be blank planning columns.
+        if (!e.prov && hit.provenance) e.prov = hit.provenance;
       }
-      const dcpRows = [['Data Point', 'Unit', '# Standards Satisfied', 'Standards', 'Data Owner', 'Frequency', 'Source System', 'Assurance Level', 'Notes']];
+      const dcpRows = [['Data Point', 'Unit', '# Standards Satisfied', 'Standards', 'Unit Operation', 'Data Owner', 'Frequency', 'Source System', 'Assurance Readiness', 'Notes (mechanism)']];
       for (const p of [...uniquePoints.values()].sort((a, b) => b.standards.size - a.standards.size)) {
-        dcpRows.push([p.name, p.unit, p.standards.size, [...p.standards].join(', '), '', '', '', '', '']);
+        const pv = p.prov;
+        dcpRows.push([p.name, p.unit, p.standards.size, [...p.standards].join(', '),
+          pv ? pv.op : '', '', '', pv ? pv.dataSource : '', pv ? (CONF_LABEL[pv.confidence] || '') : '', pv ? pv.mechanism : '']);
       }
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dcpRows), 'Data Collection Plan');
 
@@ -2041,9 +2087,11 @@ Company description:
       );
     }
 
-    function DisclosureResults({ hits, profile, architecture, onBack, onReset }) {
+    function DisclosureResults({ hits, profile, architecture, audience, onBack, onReset }) {
       const [activeTab, setActiveTab] = useState('all');
       const [downloading, setDownloading] = useState(false);
+      const aud = AUDIENCES[audience] || AUDIENCES.company;
+      const confTone = { good: '#1f8a5b', mid: '#b57614', weak: 'var(--signal)' };
 
       const stats = useMemo(() => {
         const byStandard = {};
@@ -2053,7 +2101,8 @@ Company description:
         const mandatory = hits.filter(h => h.mandatory).length;
         const uniqueDataPoints = new Set(hits.map(h => `${h.name}|${h.unit}`)).size;
         const consolidation = uniqueDataPoints ? (hits.length / uniqueDataPoints) : 0;
-        return { byStandard, mandatory, uniqueDataPoints, total: hits.length, consolidation };
+        const traced = hits.filter(h => h.provenance).length;
+        return { byStandard, mandatory, uniqueDataPoints, total: hits.length, consolidation, traced };
       }, [hits]);
 
       const overlapData = useMemo(() => {
@@ -2071,6 +2120,7 @@ Company description:
       const filteredHits = useMemo(() => {
         if (activeTab === 'all') return hits;
         if (activeTab === 'mandatory') return hits.filter(h => h.mandatory);
+        if (activeTab === 'traced') return hits.filter(h => h.provenance);
         return hits.filter(h => h.standard === activeTab);
       }, [hits, activeTab]);
 
@@ -2105,12 +2155,21 @@ Company description:
             <Stat label="Total disclosures" value={stats.total} accent />
             <Stat label="Mandatory" value={stats.mandatory} highlight />
             <Stat label="Unique data points" value={stats.uniqueDataPoints} />
-            <Stat label="Consolidation" value={`${stats.consolidation.toFixed(1)}×`} accent />
+            <Stat label="Traced to a node" value={stats.traced} highlight />
             <Stat label="Standards" value={Object.keys(stats.byStandard).length} />
           </div>
-          <p style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.6, margin: '12px 2px 32px', maxWidth: 760 }}>
+          <p style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.6, margin: '12px 2px 10px', maxWidth: 760 }}>
             Those <strong style={{ color: 'var(--ink)' }}>{stats.total}</strong> reporting lines collapse to just <strong style={{ color: 'var(--ink)' }}>{stats.uniqueDataPoints}</strong> distinct measurements — collect each once, report it everywhere. The <span style={{ color: 'var(--accent)', fontWeight: 600 }}>Overlap analysis</span> tab shows which single data points satisfy the most frameworks.
           </p>
+          {stats.traced > 0 && (
+            <p style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.6, margin: '0 2px 32px', maxWidth: 760 }}>
+              <strong style={{ color: aud.accent }}>{stats.traced}</strong> of them are traced to the exact unit operation that generates them —{' '}
+              {aud.id === 'assurer'
+                ? 'each carrying its measurement method, data confidence, and the physical reason the number exists. Filter to the '
+                : 'each carrying the meter or record that captures it and where it sits in your process. Filter to the '}
+              <span style={{ color: 'var(--accent)', fontWeight: 600 }}>Traced</span> tab, or read the <strong>Origin</strong> column below. All of it ships in the Excel — see the <em>Node Provenance</em> tab.
+            </p>
+          )}
 
           <div className="tab-row">
             <button className={`tab-btn ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')}>
@@ -2119,6 +2178,11 @@ Company description:
             <button className={`tab-btn ${activeTab === 'mandatory' ? 'active' : ''}`} onClick={() => setActiveTab('mandatory')}>
               <AlertCircle size={13} /> Mandatory <span className="tab-count">{stats.mandatory}</span>
             </button>
+            {stats.traced > 0 && (
+              <button className={`tab-btn ${activeTab === 'traced' ? 'active' : ''}`} onClick={() => setActiveTab('traced')}>
+                <Layers size={13} /> Traced <span className="tab-count">{stats.traced}</span>
+              </button>
+            )}
             {Object.entries(stats.byStandard).sort(([, a], [, b]) => b - a).map(([std, n]) => (
               <button key={std} className={`tab-btn ${activeTab === std ? 'active' : ''}`} onClick={() => setActiveTab(std)}>
                 {std} <span className="tab-count">{n}</span>
@@ -2185,8 +2249,9 @@ Company description:
                     <th style={{ width: 90 }}>Standard</th>
                     <th style={{ width: 130 }}>Code</th>
                     <th>Indicator</th>
-                    <th style={{ width: 110 }}>Unit</th>
+                    <th style={{ width: 100 }}>Unit</th>
                     <th>Triggered by</th>
+                    <th style={{ minWidth: 220 }}>{aud.id === 'assurer' ? 'Origin & provenance' : 'Origin & capture'}</th>
                     <th style={{ width: 110 }}>Status</th>
                   </tr>
                 </thead>
@@ -2205,6 +2270,31 @@ Company description:
                         <div className="mono" style={{ fontSize: 10.5, color: 'var(--ink-4)', marginTop: 2 }}>
                           {h.archetype} {h.sub_id !== '—' ? `· ${h.sub_id}` : ''}
                         </div>
+                      </td>
+                      <td style={{ fontSize: 12 }}>
+                        {h.provenance ? (() => {
+                          const p = h.provenance;
+                          const conf = CONFIDENCE[p.confidence];
+                          return (
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                                <Layers size={11} color={aud.accent} />
+                                <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{p.op}</span>
+                                <span className="mono" style={{ fontSize: 9.5, color: 'var(--ink-4)' }}>{p.primitiveLabel}</span>
+                              </div>
+                              {aud.id === 'assurer' ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--ink-3)' }}>
+                                  <span style={{ width: 7, height: 7, borderRadius: 7, background: confTone[conf.tone], flexShrink: 0 }} />
+                                  <span>{conf.label} · {SCOPE_META[p.scope]?.label}</span>
+                                </div>
+                              ) : (
+                                <div style={{ color: 'var(--ink-3)' }}>{p.measurement}</div>
+                              )}
+                            </div>
+                          );
+                        })() : (
+                          <span className="mono" style={{ fontSize: 10.5, color: 'var(--ink-4)' }} title="Mapped at the phase level; not yet traced to a specific unit operation.">phase-level</span>
+                        )}
                       </td>
                       <td>
                         <span className={`badge ${h.mandatory ? 'badge-mandatory' : 'badge-voluntary'}`}>
@@ -2808,6 +2898,7 @@ Company description:
                 hits={hits}
                 profile={profile}
                 architecture={architecture}
+                audience={audience}
                 onBack={goBack}
                 onReset={reset}
               />
