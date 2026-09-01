@@ -1024,6 +1024,9 @@
           { d: 'D-GRI-EU1', scope: 'env', materiality: 'L', confidence: 'measured',
             mechanism: 'Nameplate installed capacity by primary energy source — a static register value set at commissioning.',
             measurement: 'Nameplate rating', source: 'Asset register / grid connection agreement' },
+          { d: 'D-SASB-420a-2', scope: 'env', materiality: 'M', confidence: 'measured', req: ['renewable'],
+            mechanism: 'Renewable generation — absolute MWh and share of the portfolio, the headline metric for a clean asset.',
+            measurement: 'Revenue meter, tagged renewable', source: 'Settlement / GO registry' },
         ],
       },
       intensity_derived: {
@@ -1051,9 +1054,12 @@
       flue_gas_treatment: {
         label: 'Flue-gas treatment', desc: 'Scrubbing pollutants from the exhaust stream before the stack.',
         metrics: [
-          { d: 'D-GRI-303-4', also: ['D-SASB-140a-2'], scope: 'env', materiality: 'M', confidence: 'measured',
-            mechanism: 'Wet flue-gas desulfurisation generates a chloride-rich wastewater stream that must be treated before discharge.',
-            measurement: 'Scrubber blowdown flow + effluent quality', source: 'Effluent monitoring / consent point' },
+          { d: 'D-GRI-305-7', also: ['D-SASB-120a-1', 'D-ESRS-E2-4', 'D-BRSR-P6-3'], scope: 'env', materiality: 'H', confidence: 'measured', req: ['air'],
+            mechanism: 'Post-abatement stack concentrations of NOx, SO₂, particulates (and dioxins/furans for waste feedstocks) — what actually reaches the atmosphere after scrubbing.',
+            measurement: 'Stack CEMS downstream of abatement', source: 'Continuous Emissions Monitoring System' },
+          { d: 'D-GRI-303-4', also: ['D-SASB-140a-2'], scope: 'env', materiality: 'M', confidence: 'measured', req: ['wastewater'],
+            mechanism: 'Wet scrubbing / leachate generates a contaminated wastewater stream that must be treated before discharge.',
+            measurement: 'Blowdown flow + effluent quality', source: 'Effluent monitoring / consent point' },
         ],
       },
       residuals_handling: {
@@ -1079,9 +1085,12 @@
           { d: 'D-GRI-305-3', also: ['D-ISSB-S2-S3', 'D-BRSR-P6-7', 'D-ESRS-E1-6'], scope: 3, materiality: 'M', confidence: 'estimated',
             mechanism: 'Upstream fuel-cycle emissions before the gate — coal-mine methane and rail/barge haulage, or gas production and pipeline/LNG leakage.',
             measurement: 'Supplier data or fuel-cycle emission factor', source: 'Supplier disclosure / factor database' },
-          { d: 'D-GRI-308-1', also: ['D-GRI-414-1'], scope: 'env', materiality: 'L', confidence: 'measured',
-            mechanism: 'New fuel and equipment suppliers screened against environmental (308-1) and social (414-1) criteria at onboarding.',
+          { d: 'D-GRI-308-1', also: ['D-GRI-414-1', 'D-ESRS-S2-1'], scope: 'env', materiality: 'L', confidence: 'measured',
+            mechanism: 'New fuel and equipment suppliers screened against environmental (308-1), social (414-1) and value-chain-worker (S2-1) criteria at onboarding.',
             measurement: '% new suppliers screened', source: 'Procurement / vendor onboarding system' },
+          { d: 'D-ESRS-E5-4', scope: 3, materiality: 'M', confidence: 'estimated', req: ['minerals'],
+            mechanism: 'Critical-mineral resource inflows (lithium, cobalt, silicon, rare earths) entering the supply chain — a circularity and traceability exposure.',
+            measurement: 'Bill-of-materials × mineral factors', source: 'Procurement / traceability system' },
         ],
       },
       fugitive_methane: {
@@ -1093,6 +1102,130 @@
           { d: 'D-SASB-110a-2', scope: 1, materiality: 'L', confidence: 'estimated',
             mechanism: 'The methane-management strategy narrative — targets, LDAR cadence, and reduction programme.',
             measurement: 'Programme documentation', source: 'Climate strategy / management system' },
+        ],
+      },
+      grid_losses: {
+        label: 'Network losses', desc: 'Electricity lost moving power across the wires.',
+        metrics: [
+          { d: 'D-GRI-305-2', also: ['D-ISSB-S2-S2'], scope: 2, materiality: 'H', confidence: 'calculated',
+            mechanism: 'Technical and commercial losses across the network are drawn from the grid — the wires operator’s dominant Scope 2 term.',
+            measurement: 'Energy input minus energy delivered', source: 'SCADA / energy accounting' },
+          { d: 'D-GRI-EU4', scope: 'env', materiality: 'L', confidence: 'measured',
+            mechanism: 'Circuit-kilometres of line — the physical extent that drives both losses and land/right-of-way footprint.',
+            measurement: 'Asset register (circuit-km)', source: 'GIS / asset register' },
+        ],
+      },
+      grid_reliability: {
+        label: 'Grid reliability', desc: 'Continuity of supply to connected customers.',
+        metrics: [
+          { d: 'D-GRI-EU28', also: ['D-SASB-540a-1'], scope: 'env', materiality: 'M', confidence: 'measured',
+            mechanism: 'Interruption frequency (SAIFI) — how often the average customer loses supply.',
+            measurement: 'Interruptions ÷ customers served', source: 'Outage management system' },
+          { d: 'D-GRI-EU29', scope: 'env', materiality: 'M', confidence: 'measured',
+            mechanism: 'Interruption duration (SAIDI) — customer-minutes lost per year.',
+            measurement: 'Customer-minutes lost ÷ customers', source: 'Outage management system' },
+        ],
+      },
+      biodiversity: {
+        label: 'Biodiversity & land', desc: 'Land footprint and impact on species and habitats.',
+        metrics: [
+          { d: 'D-GRI-304-1', scope: 'env', materiality: 'M', confidence: 'measured',
+            mechanism: 'Operational sites in or adjacent to protected / high-biodiversity areas — the exposure baseline.',
+            measurement: 'GIS overlay against protected-area registers', source: 'GIS / permitting' },
+          { d: 'D-GRI-304-2', also: ['D-ESRS-E4-5', 'D-BRSR-P6-6'], scope: 'env', materiality: 'M', confidence: 'estimated',
+            mechanism: 'Significant impacts on species and habitats from land conversion, and the mitigation hierarchy applied.',
+            measurement: 'Ecological impact assessment', source: 'Environmental & social impact assessment' },
+          { d: 'D-GRI-304-3', scope: 'env', materiality: 'L', confidence: 'measured', req: ['restore'],
+            mechanism: 'Area of habitat protected or restored under the biodiversity management plan.',
+            measurement: 'Hectares restored (surveyed)', source: 'Biodiversity management plan' },
+          { d: 'D-ESRS-E4-1', scope: 'env', materiality: 'L', confidence: 'estimated', req: ['plan'],
+            mechanism: 'Biodiversity transition plan aligning the asset with no-net-loss / nature targets.',
+            measurement: 'Plan documentation', source: 'Sustainability management system' },
+        ],
+      },
+      community: {
+        label: 'Community relations', desc: 'Engagement with and impact on host communities.',
+        metrics: [
+          { d: 'D-GRI-413-1', also: ['D-ESRS-S3-1', 'D-BRSR-P8-1'], scope: 'env', materiality: 'M', confidence: 'measured',
+            mechanism: 'Share of operations running structured community engagement, impact assessment and development programmes.',
+            measurement: '% sites with engagement programmes', source: 'Community relations / CSR records' },
+          { d: 'D-GRI-413-2', also: ['D-ESRS-S3-3'], scope: 'env', materiality: 'M', confidence: 'estimated',
+            mechanism: 'Operations with actual or potential negative impacts on local communities — displacement, access, nuisance — and their remediation.',
+            measurement: 'Impact register + grievance log', source: 'Grievance mechanism' },
+        ],
+      },
+      customer_service: {
+        label: 'Customer service & affordability', desc: 'Retail pricing, access and consumer protection.',
+        metrics: [
+          { d: 'D-SASB-240a-1', also: ['D-SASB-240a-2'], scope: 'env', materiality: 'M', confidence: 'measured',
+            mechanism: 'Average retail rate and typical monthly bill by customer class — the affordability signal.',
+            measurement: 'Billing-system aggregation', source: 'Billing / CIS' },
+          { d: 'D-SASB-240a-3', scope: 'env', materiality: 'M', confidence: 'measured', req: ['disconnect'],
+            mechanism: 'Customer disconnections for non-payment — a hardship and just-transition indicator.',
+            measurement: 'Disconnection count ÷ customers', source: 'Billing / collections' },
+          { d: 'D-SASB-240a-4', also: ['D-ESRS-S4-1'], scope: 'env', materiality: 'L', confidence: 'measured',
+            mechanism: 'Customer-service performance and consumer-protection policy.',
+            measurement: 'CSAT / complaint-resolution KPIs', source: 'CRM' },
+          { d: 'D-GRI-418-1', also: ['D-BRSR-P9-1'], scope: 'env', materiality: 'M', confidence: 'measured', req: ['privacy'],
+            mechanism: 'Substantiated privacy complaints and data breaches affecting customer data.',
+            measurement: 'Privacy-incident log', source: 'DPO / security' },
+        ],
+      },
+      occupational_safety: {
+        label: 'Occupational safety', desc: 'Worker health and safety at non-thermal operations.',
+        metrics: [
+          { d: 'D-GRI-403-9', also: ['D-SASB-320a-1', 'D-ESRS-S1-14', 'D-BRSR-P3-2', 'D-GRI-2-8'], scope: 'env', materiality: 'M', confidence: 'measured',
+            mechanism: 'Work-related injuries and fatalities (incl. contractors) — the core OH&S disclosure across frameworks.',
+            measurement: 'Recordable-injury log (TRIR / LTIFR)', source: 'EHS incident management system' },
+        ],
+      },
+      nuclear_safety: {
+        label: 'Nuclear safety', desc: 'Radiological safety events and containment integrity.',
+        metrics: [
+          { d: 'D-SASB-540a-2', scope: 'env', materiality: 'H', confidence: 'measured',
+            mechanism: 'Nuclear safety events on the INES scale — the archetype’s defining low-probability, high-consequence risk.',
+            measurement: 'INES event log', source: 'Regulator reporting' },
+        ],
+      },
+      cybersecurity: {
+        label: 'Cybersecurity', desc: 'Operational-technology security of grid-critical systems.',
+        metrics: [
+          { d: 'D-SASB-550a-2', scope: 'env', materiality: 'M', confidence: 'measured',
+            mechanism: 'Grid-security (NERC CIP-type) violations — the operational-technology cyber exposure of the asset.',
+            measurement: 'Compliance-violation register', source: 'OT security / compliance' },
+        ],
+      },
+      fugitive_gas: {
+        label: 'Fugitive gases (CH₄ / SF₆)', desc: 'High-GWP gases leaking from equipment.',
+        metrics: [
+          { d: 'D-GRI-305-1', also: ['D-ISSB-S2-S1', 'D-CDP-C6'], scope: 1, materiality: 'M', confidence: 'measured',
+            mechanism: 'Fugitive high-GWP gases — SF₆ from high-voltage switchgear, or residual on-site combustion — quantified by mass-balance top-up and leak detection.',
+            measurement: 'Nameplate inventory mass-balance', source: 'Gas inventory / LDAR programme' },
+        ],
+      },
+      climate_strategy: {
+        label: 'Climate strategy & governance', desc: 'Forward-looking transition plan, targets and oversight.',
+        metrics: [
+          { d: 'D-ESRS-E1-1', also: ['D-ESRS-E1-4', 'D-ISSB-S2-Targets', 'D-CDP-C3', 'D-ISSB-S2-Strat-Risk', 'D-ISSB-S2-Strat-Resilience', 'D-CDP-C2', 'D-ESRS-E1-9', 'D-ISSB-S2-Capex', 'D-ESRS-E1-7'], scope: 'env', materiality: 'H', confidence: 'estimated', req: ['transition'],
+            mechanism: 'The transition plan, targets, scenario analysis and aligned capital — the forward-looking climate strategy the frameworks converge on.',
+            measurement: 'Board-approved transition plan & targets', source: 'Climate strategy / investor relations' },
+          { d: 'D-ISSB-S1-Gov', also: ['D-ISSB-S1-Strat', 'D-GRI-3-1', 'D-GRI-3-2'], scope: 'env', materiality: 'M', confidence: 'estimated', req: ['governance'],
+            mechanism: 'Sustainability governance and the materiality-determination process — who owns ESG and how topics are prioritised.',
+            measurement: 'Governance charter & materiality assessment', source: 'Board / sustainability office' },
+          { d: 'D-CDP-C12', scope: 'env', materiality: 'L', confidence: 'estimated', req: ['engage'],
+            mechanism: 'Value-chain engagement on climate — suppliers, customers and policy.',
+            measurement: 'Engagement-programme records', source: 'Sustainability office' },
+          { d: 'D-CDP-C7', scope: 'env', materiality: 'L', confidence: 'calculated', req: ['breakdown'],
+            mechanism: 'Emissions breakdowns by source, gas and geography.',
+            measurement: 'GHG-inventory disaggregation', source: 'GHG inventory' },
+        ],
+      },
+      governance_conduct: {
+        label: 'Business conduct', desc: 'Anti-corruption and market-conduct integrity.',
+        metrics: [
+          { d: 'D-GRI-205-1', also: ['D-GRI-205-2', 'D-ESRS-G1-3'], scope: 'env', materiality: 'M', confidence: 'measured',
+            mechanism: 'Operations assessed for corruption risk and anti-bribery training coverage — market-conduct integrity.',
+            measurement: '% operations assessed / % trained', source: 'Compliance / ethics' },
         ],
       },
     };
@@ -1129,7 +1262,7 @@
           { op: 'Pumping & fans', primitive: 'aux_power', note: 'Circulating-water pumps, ID/FD fans, ESP.' },
         ],
         '2.1': [
-          { op: 'Scrubbing', primitive: 'flue_gas_treatment', note: 'Wet FGD removes SO₂ but produces a wastewater stream.' },
+          { op: 'Scrubbing', primitive: 'flue_gas_treatment', ctx: ['wastewater'], note: 'Wet FGD removes SO₂ but produces a wastewater stream.' },
         ],
         '2.2': [
           { op: 'Capturing particulate', primitive: 'residuals_handling', ctx: ['ccr'], note: 'Electrostatic precipitator collects fly ash — a beneficially-reusable residual.' },
@@ -1178,6 +1311,302 @@
         ],
         '3.4': [
           { op: 'Leak detection & repair', primitive: 'fugitive_methane', note: 'LDAR across valves, flanges and vents — the material non-CO₂ Scope 1 term for gas.' },
+        ],
+      },
+      '3_Solar_PV': {
+        '1.1': [
+          { op: 'Generating & exporting', primitive: 'grid_export', ctx: ['renewable'] },
+          { op: 'Auxiliary loads', primitive: 'aux_power', note: 'Trackers, inverters and site power — the array’s small energy draw.' },
+          { op: 'Module & equipment sourcing', primitive: 'upstream_supply', ctx: ['minerals'], note: 'PV modules carry silicon, silver and embodied-carbon supply-chain exposure.' },
+        ],
+        '1.4': [
+          { op: 'Backup & site generation', primitive: 'fugitive_gas', note: 'Near-zero direct emissions — residual from backup gensets only.' },
+        ],
+        '2.1': [
+          { op: 'Site preparation', primitive: 'biodiversity', note: 'Land clearing for ground-mount arrays is the archetype’s primary impact.' },
+          { op: 'Community & land rights', primitive: 'community' },
+        ],
+        '2.4': [
+          { op: 'Habitat care', primitive: 'biodiversity', ctx: ['restore'], note: 'Pollinator habitat and revegetation under panels.' },
+        ],
+        '3.1': [
+          { op: 'Panel washing', primitive: 'cooling_water', note: 'Water for module cleaning in dusty climates.' },
+        ],
+        '3.2': [
+          { op: 'Module end-of-life', primitive: 'residuals_handling', note: 'PV-module recycling / disposal at decommissioning.' },
+        ],
+        '3.3': [
+          { op: 'Inverter & battery disposal', primitive: 'residuals_handling', note: 'Power electronics and any co-located battery waste.' },
+        ],
+      },
+      '4_Onshore_Wind': {
+        '1.3': [
+          { op: 'Generating & exporting', primitive: 'grid_export', ctx: ['renewable'] },
+          { op: 'Auxiliary loads', primitive: 'aux_power', note: 'Yaw, pitch and controller loads.' },
+        ],
+        '1.4': [
+          { op: 'Farm collection', primitive: 'fugitive_gas', note: 'Residual — SF₆ in collector switchgear.' },
+        ],
+        '2.2': [
+          { op: 'Bird & bat mitigation', primitive: 'biodiversity', note: 'Avian/bat collision risk is the wind archetype’s defining biodiversity impact.' },
+        ],
+        '2.3': [
+          { op: 'Noise & shadow', primitive: 'community', note: 'Noise and shadow-flicker nuisance to nearby residents.' },
+        ],
+        '3.1': [
+          { op: 'Blade end-of-life', primitive: 'residuals_handling', note: 'Composite blades are hard to recycle — a signature waste stream.' },
+        ],
+        '3.2': [
+          { op: 'Lubricant & fluids', primitive: 'residuals_handling', note: 'Gearbox oil and hydraulic fluids.' },
+        ],
+        '3.4': [
+          { op: 'SF₆ management', primitive: 'fugitive_gas', note: 'SF₆ from switchgear — very high GWP direct Scope 1.' },
+        ],
+      },
+      '5_Hydro_Large': {
+        '1.1': [
+          { op: 'Water storage', primitive: 'cooling_water', ctx: ['evaporative'], note: 'Reservoir evaporation is a large consumptive water loss.' },
+        ],
+        '1.4': [
+          { op: 'Generating & exporting', primitive: 'grid_export', ctx: ['renewable'] },
+          { op: 'Auxiliary loads', primitive: 'aux_power', note: 'Station service and dewatering.' },
+        ],
+        '2.1': [
+          { op: 'Ecological flow', primitive: 'biodiversity', note: 'Altered river flow regime affects downstream habitat.' },
+        ],
+        '2.2': [
+          { op: 'Fish passage', primitive: 'biodiversity', ctx: ['restore'], note: 'Fish ladders and passage restoration.' },
+        ],
+        '2.4': [
+          { op: 'Reservoir GHG', primitive: 'fugitive_gas', note: 'Methane from decomposing organic matter in the reservoir — a real hydro Scope 1 term.' },
+        ],
+        '3.2': [
+          { op: 'Resettlement & livelihoods', primitive: 'community' },
+        ],
+        '3.3': [
+          { op: 'Dam safety', primitive: 'occupational_safety', note: 'Dam-break is the low-probability, high-consequence safety case.' },
+        ],
+      },
+      '6_Nuclear': {
+        '1.4': [
+          { op: 'Turbine & generation', primitive: 'grid_export' },
+          { op: 'Direct emissions', primitive: 'fugitive_gas', note: 'Near-zero operational CO₂ — residual from backup diesels; reported for completeness.' },
+        ],
+        '1.5': [
+          { op: 'Heat rejection', primitive: 'cooling_water', ctx: ['evaporative'], note: 'Large thermal discharge; once-through or tower cooling.' },
+        ],
+        '2.1': [
+          { op: 'Radiation & safety events', primitive: 'nuclear_safety' },
+        ],
+        '2.4': [
+          { op: 'Worker dosimetry', primitive: 'occupational_safety', note: 'Radiation dose alongside conventional injury tracking.' },
+        ],
+        '3.1': [
+          { op: 'Spent-fuel management', primitive: 'residuals_handling', note: 'High-integrity interim storage of spent fuel.' },
+        ],
+        '3.2': [
+          { op: 'Low-level waste', primitive: 'residuals_handling', ctx: ['disposal'], note: 'Treated, packaged and disposed to licensed facilities.' },
+        ],
+      },
+      '7_BESS': {
+        '1.1': [
+          { op: 'Charging losses', primitive: 'grid_losses', note: 'Round-trip efficiency loss is drawn from the grid — the storage Scope 2 term.' },
+        ],
+        '2.1': [
+          { op: 'Thermal management', primitive: 'occupational_safety', note: 'Thermal-runaway exposure for O&M staff.' },
+        ],
+        '2.2': [
+          { op: 'Fire safety', primitive: 'occupational_safety' },
+        ],
+        '2.4': [
+          { op: 'Cybersecurity', primitive: 'cybersecurity' },
+        ],
+        '3.1': [
+          { op: 'Critical-minerals sourcing', primitive: 'upstream_supply', ctx: ['minerals'], note: 'Lithium, cobalt and nickel supply-chain due diligence.' },
+        ],
+        '3.3': [
+          { op: 'End-of-life recycling', primitive: 'residuals_handling', note: 'Battery-cell recycling and hazardous-waste handling.' },
+        ],
+      },
+      '8_Transmission': {
+        '1.1': [
+          { op: 'Load flow & losses', primitive: 'grid_losses' },
+        ],
+        '1.4': [
+          { op: 'System restoration', primitive: 'grid_reliability', note: 'Bulk-system reliability performance.' },
+        ],
+        '2.2': [
+          { op: 'Vegetation management', primitive: 'biodiversity', note: 'Right-of-way clearing impacts on habitat.' },
+        ],
+        '2.4': [
+          { op: 'Avian protection', primitive: 'biodiversity', note: 'Bird collision and electrocution mitigation.' },
+        ],
+        '3.1': [
+          { op: 'SF₆ management', primitive: 'fugitive_gas', note: 'SF₆ from GIS switchgear — the network operator’s main direct Scope 1.' },
+        ],
+        '3.2': [
+          { op: 'Transformer-oil management', primitive: 'residuals_handling', note: 'Used insulating oil and PCB-legacy handling.' },
+        ],
+        '3.3': [
+          { op: 'EMF & public exposure', primitive: 'community', note: 'Public concern over electromagnetic fields near lines.' },
+        ],
+        '3.4': [
+          { op: 'Live-line worker safety', primitive: 'occupational_safety' },
+        ],
+      },
+      '9_Distribution': {
+        '1.1': [
+          { op: 'Distribution losses', primitive: 'grid_losses' },
+        ],
+        '1.2': [
+          { op: 'Outage management', primitive: 'grid_reliability', note: 'SAIFI/SAIDI are the discom’s headline service metrics.' },
+        ],
+        '1.4': [
+          { op: 'Loss reduction', primitive: 'grid_losses', note: 'AT&C loss reduction — critical for Indian discoms.' },
+        ],
+        '2.2': [
+          { op: 'Metering & billing', primitive: 'customer_service', note: 'Retail rates and typical bills by class.' },
+        ],
+        '2.3': [
+          { op: 'Customer service', primitive: 'customer_service', ctx: ['disconnect', 'privacy'], note: 'Disconnections, service quality and privacy.' },
+        ],
+        '2.4': [
+          { op: 'Energy access & affordability', primitive: 'customer_service', note: 'Consumer-protection and affordability policy.' },
+        ],
+        '3.2': [
+          { op: 'Public & worker safety', primitive: 'occupational_safety' },
+          { op: 'Community impact', primitive: 'community' },
+        ],
+        '3.3': [
+          { op: 'Transformer-oil & waste', primitive: 'residuals_handling' },
+        ],
+      },
+      '10_Retail_Supply': {
+        '1.1': [
+          { op: 'Wholesale purchase', primitive: 'upstream_supply', note: 'Purchased-power Scope 3 is a supplier’s largest footprint.' },
+          { op: 'Emissions breakdown', primitive: 'climate_strategy', ctx: ['breakdown'] },
+        ],
+        '1.2': [
+          { op: 'PPA & REC sourcing', primitive: 'climate_strategy', ctx: ['transition', 'engage'], note: 'Clean-supply transition plan and value-chain engagement.' },
+        ],
+        '2.2': [
+          { op: 'Tariff & product', primitive: 'customer_service' },
+        ],
+        '2.3': [
+          { op: 'Billing & collections', primitive: 'customer_service', ctx: ['disconnect'] },
+        ],
+        '2.4': [
+          { op: 'Vulnerable-customer support', primitive: 'customer_service', ctx: ['privacy'] },
+        ],
+        '3.4': [
+          { op: 'Complaints & mis-selling', primitive: 'customer_service', ctx: ['privacy'] },
+        ],
+      },
+      '11_Integrated': {
+        '1.4': [
+          { op: 'Fuel-mix transition', primitive: 'climate_strategy', ctx: ['transition'], note: 'Portfolio decarbonisation plan, targets, scenario analysis and aligned capex.' },
+        ],
+        '2.3': [
+          { op: 'System reliability', primitive: 'grid_reliability' },
+        ],
+        '2.4': [
+          { op: 'Grid cybersecurity', primitive: 'cybersecurity' },
+        ],
+        '3.2': [
+          { op: 'Tariff & regulatory filings', primitive: 'customer_service', note: 'Retail-rate filings by customer class.' },
+        ],
+        '3.4': [
+          { op: 'ESG governance', primitive: 'climate_strategy', ctx: ['governance'] },
+        ],
+      },
+      '12_Renewable_IPP': {
+        '1.1': [
+          { op: 'Resource assessment', primitive: 'biodiversity', note: 'Site screening against protected areas.' },
+        ],
+        '1.2': [
+          { op: 'Land & permitting', primitive: 'community' },
+        ],
+        '2.1': [
+          { op: 'Generation operations', primitive: 'grid_export', ctx: ['renewable'] },
+        ],
+        '3.1': [
+          { op: 'REC & GO issuance', primitive: 'climate_strategy', ctx: ['engage'], note: 'Certificate issuance and value-chain engagement.' },
+        ],
+        '3.2': [
+          { op: 'Biodiversity & land', primitive: 'biodiversity', ctx: ['restore', 'plan'] },
+        ],
+        '3.3': [
+          { op: 'Supply-chain due diligence', primitive: 'upstream_supply', note: 'Module and turbine supply-chain human-rights screening.' },
+        ],
+        '3.4': [
+          { op: 'Decommissioning & recycling', primitive: 'residuals_handling', note: 'End-of-life recovery of panels, turbines and cells.' },
+        ],
+      },
+      '13_Biomass_WtE': {
+        '1.1': [
+          { op: 'Feedstock sourcing', primitive: 'upstream_supply', note: 'Sustainable-feedstock certification and chain-of-custody.' },
+        ],
+        '1.3': [
+          { op: 'Combustion / gasification', primitive: 'combustion', ctx: ['carbon'], note: 'Biogenic + fossil CO₂; feedstock variability complicates the carbon balance.' },
+        ],
+        '2.1': [
+          { op: 'Flue-gas cleaning', primitive: 'flue_gas_treatment', ctx: ['air'] },
+        ],
+        '2.2': [
+          { op: 'Dioxin / furan control', primitive: 'flue_gas_treatment', ctx: ['air'], note: 'Dioxin/furan control is the defining WtE air risk.' },
+        ],
+        '2.3': [
+          { op: 'Odour management', primitive: 'community', note: 'Odour nuisance to neighbours of the plant.' },
+        ],
+        '2.4': [
+          { op: 'Leachate management', primitive: 'flue_gas_treatment', ctx: ['wastewater'], note: 'Contaminated leachate from the waste bunker.' },
+        ],
+        '3.2': [
+          { op: 'Bottom & fly ash', primitive: 'residuals_handling', ctx: ['disposal'], note: 'APC residues are hazardous; bottom ash may be recovered.' },
+        ],
+        '3.4': [
+          { op: 'Community engagement', primitive: 'community' },
+        ],
+      },
+      '14_Trading': {
+        '1.1': [
+          { op: 'Market analysis', primitive: 'climate_strategy', ctx: ['transition'], note: 'Climate risk in market positioning.' },
+        ],
+        '2.3': [
+          { op: 'Regulatory compliance', primitive: 'governance_conduct' },
+        ],
+        '2.4': [
+          { op: 'Surveillance & conduct', primitive: 'governance_conduct', note: 'Market-abuse surveillance and anti-corruption.' },
+        ],
+        '3.2': [
+          { op: 'Carbon markets', primitive: 'climate_strategy', ctx: ['transition'], note: 'Carbon-credit and removals trading.' },
+        ],
+        '3.4': [
+          { op: 'Climate disclosure', primitive: 'climate_strategy', ctx: ['engage'] },
+        ],
+      },
+      '15_EV_Charging': {
+        '1.1': [
+          { op: 'Site selection', primitive: 'community', note: 'Siting engagement and equitable access.' },
+        ],
+        '2.1': [
+          { op: 'Charging energy', primitive: 'grid_losses', note: 'Delivered charging energy is a purchased-power Scope 2 term.' },
+        ],
+        '2.4': [
+          { op: 'Smart & V2G data', primitive: 'customer_service', ctx: ['privacy'] },
+        ],
+        '3.1': [
+          { op: 'Green-energy sourcing', primitive: 'climate_strategy', ctx: ['engage'] },
+        ],
+        '3.2': [
+          { op: 'Hardware replacement', primitive: 'residuals_handling', note: 'Charger and cable e-waste.' },
+        ],
+        '3.3': [
+          { op: 'Accessibility & equity', primitive: 'customer_service', note: 'Equitable charging access as consumer protection.' },
+        ],
+        '3.4': [
+          { op: 'Data privacy & cyber', primitive: 'customer_service', ctx: ['privacy'] },
+          { op: 'Cybersecurity', primitive: 'cybersecurity' },
         ],
       },
     };
