@@ -280,6 +280,50 @@
       letter-spacing: 0.06em;
       text-transform: uppercase;
     }
+    /* ============================================================
+       Guided walkthrough
+       ============================================================ */
+    #tour-launch {
+      position: fixed; right: 22px; bottom: 22px; z-index: 900;
+      display: inline-flex; align-items: center; gap: 9px;
+      background: var(--accent); color: #fff; border: none;
+      padding: 13px 20px; border-radius: 999px;
+      font-family: inherit; font-weight: 600; font-size: 14px; cursor: pointer;
+      box-shadow: 0 12px 34px rgba(91, 0, 168, .38);
+      transition: transform .15s, box-shadow .15s, opacity .3s;
+    }
+    #tour-launch:hover { transform: translateY(-2px); background: var(--accent-2); box-shadow: 0 16px 40px rgba(91, 0, 168, .5); }
+    #tour-launch svg { width: 16px; height: 16px; }
+    #tour-launch .dot { width: 9px; height: 9px; border-radius: 50%; background: #e9d5ff; box-shadow: 0 0 0 0 rgba(233,213,255,.85); animation: tourPulse 1.7s infinite; }
+    body.tour-on #tour-launch { opacity: 0; pointer-events: none; }
+
+    @keyframes tourPulse { 0% { box-shadow: 0 0 0 0 rgba(233,213,255,.7) } 70% { box-shadow: 0 0 0 9px rgba(233,213,255,0) } 100% { box-shadow: 0 0 0 0 rgba(233,213,255,0) } }
+
+    #tour-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 950; transform: translateY(150%); transition: transform .4s cubic-bezier(.2,.8,.2,1); pointer-events: none; }
+    #tour-bar.on { transform: none; }
+    #tour-bar .tour-inner {
+      position: relative; max-width: 900px; margin: 0 16px 20px; pointer-events: auto;
+      background: var(--ink); color: #fff; border-radius: 16px;
+      box-shadow: 0 18px 48px rgba(26,10,46,.45); padding: 16px 20px;
+      display: flex; align-items: center; gap: 16px;
+    }
+    @media (min-width: 940px) { #tour-bar .tour-inner { margin-left: auto; margin-right: auto; } }
+    #tour-bar .tour-prog { position: absolute; top: 0; left: 0; height: 3px; background: var(--accent-2); border-radius: 16px 0 0 0; transition: width .35s; width: 0; }
+    #tour-bar .tour-pulse { width: 12px; height: 12px; border-radius: 50%; background: var(--accent-2); box-shadow: 0 0 0 0 rgba(122,31,212,.7); animation: tourPulse 1.6s infinite; flex: 0 0 auto; }
+    #tour-bar .tour-txt { flex: 1; font-size: 14.5px; line-height: 1.45; }
+    #tour-bar .tour-txt small { display: block; opacity: .55; font-size: 10.5px; text-transform: uppercase; letter-spacing: .09em; margin-bottom: 3px; }
+    #tour-bar button { background: rgba(255,255,255,.14); border: none; color: #fff; padding: 8px 14px; border-radius: 9px; font-family: inherit; font-weight: 600; font-size: 13px; cursor: pointer; transition: .12s; flex: 0 0 auto; }
+    #tour-bar button:hover { background: rgba(255,255,255,.26); }
+
+    .tour-focus {
+      outline: 3px solid var(--accent-2) !important; outline-offset: 3px; border-radius: 10px;
+      box-shadow: 0 0 0 6px rgba(122,31,212,.16) !important;
+      transition: outline .2s, box-shadow .2s;
+    }
+    @media (max-width: 620px) {
+      #tour-bar .tour-inner { flex-wrap: wrap; }
+      #tour-bar .tour-txt { order: 3; flex-basis: 100%; }
+    }
   </style>
 </head>
 <body>
@@ -3313,6 +3357,87 @@ Company description:
         window.scrollTo({ top: 0, behavior: 'smooth' });
       };
 
+      // ------------------------------------------------------------------
+      // Guided walkthrough — one-click, end-to-end product demo.
+      // Drives the real App state setters (no fake data path) with narration.
+      // ------------------------------------------------------------------
+      const [tour, setTour] = useState({ running: false, paused: false, step: -1 });
+      const tourTimer = useRef(null);
+
+      const tourFlash = useCallback((sel, delay = 400) => {
+        setTimeout(() => {
+          const el = document.querySelector(sel);
+          if (!el) return;
+          el.classList.add('tour-focus');
+          try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+          setTimeout(() => el.classList.remove('tour-focus'), 2600);
+        }, delay);
+      }, []);
+
+      // The script. Each step: narration + an action against the live app.
+      const TOUR = [
+        { tag: 'Welcome',
+          text: 'This is Materiality Map — it turns a utility’s business profile into a scoped ESG disclosure checklist, then traces every indicator to the exact operation that generates it. Let me walk the whole pipeline in about a minute.',
+          run: () => { setView('tool'); reset(); setAudience('company'); }, wait: 5000 },
+        { tag: 'Describe the business',
+          text: 'Everything starts with a profile. Our example is Calderon Power & Water — a vertically integrated utility. We name it and mark it as Integrated across the value chain.',
+          run: () => { setProfile(p => ({ ...p, company_name: 'Calderon Power & Water', data_collection_mode: 'Quick', value_chain: ['Integrated'] })); tourFlash('.btn-primary', 900); }, wait: 4600 },
+        { tag: 'Generation mix',
+          text: 'Because it generates, we declare the fuel mix. Calderon still burns coal and gas but is building out solar and wind — each fuel pulls in a different slice of the disclosure universe.',
+          run: () => { setProfile(p => ({ ...p, generation_mix: ['Coal', 'Gas', 'Solar-PV', 'Wind-Onshore'] })); }, wait: 4600 },
+        { tag: 'Footprint & listing',
+          text: 'Geography and listing status decide which regimes apply. An India HQ pulls in BRSR; a major listing raises the bar; ISSB adoption layers on climate disclosure. That’s enough to scope.',
+          run: () => { setProfile(p => ({ ...p, geography_hq: 'India', geography_operations: ['India', 'MENA'], listing_status: 'Listed-Major', size_tier: 'Large', issb_adoption: 'ISSB-adopting' })); tourFlash('.btn-primary', 700); }, wait: 5000 },
+        { tag: 'Archetypes',
+          text: 'Continue, and the engine pre-selects the operating archetypes your profile implies — no blind auto-scoring.',
+          run: () => { proceedToStage2(); tourFlash('.stage-pad', 500); }, wait: 4200 },
+        { tag: 'Confirm archetypes',
+          text: 'Coal-fired thermal, gas, solar, wind — plus transmission and distribution from the integrated flag. Everything is pre-checked from the profile, and you confirm or edit; the scoping decision stays with you and stays auditable.',
+          run: () => { tourFlash('.main-pad', 400); }, wait: 5200 },
+        { tag: 'Process architecture',
+          text: 'Next it stitches those archetypes into one deduplicated process architecture — the operational spine the disclosures hang off.',
+          run: () => { proceedToStage3(); tourFlash('.stage-pad', 500); }, wait: 4400 },
+        { tag: 'Down to the unit operation',
+          text: 'Each phase tagged INSTRUMENTED goes deeper: hit “Instrument” and it drops from the phase to the exact unit operation — combustion, the cooling-water circuit, ash handling — that generates each metric, with its mechanism, measurement and data confidence.',
+          run: () => { tourFlash('.main-pad', 400); }, wait: 6000 },
+        { tag: 'Map the disclosures',
+          text: 'Finally it maps that architecture to every indicator across GRI, SASB, ESRS, ISSB and BRSR, collapses the overlap, and traces each disclosure back to the node that produces it.',
+          run: () => { proceedToStage4(); tourFlash('.stage-pad', 500); }, wait: 5000 },
+        { tag: 'The deliverable',
+          text: 'Here’s the scoped checklist — with a “traced to a node” count and an Origin column showing where each number comes from. Switch seats in the header (disclosing company vs. analyst/assurer) to reframe it, and export the lot as a working Excel with a node-provenance tab.',
+          run: () => { tourFlash('.btn-primary', 500); }, wait: 6000 },
+        { tag: 'That’s Materiality Map',
+          text: 'Profile → archetypes → architecture → node-level provenance → deliverable, start to finish. Explore freely from here, or hit Reset in the header to scope your own company.',
+          run: () => {}, wait: 4600 },
+      ];
+
+      const stopTour = useCallback(() => {
+        clearTimeout(tourTimer.current);
+        document.body.classList.remove('tour-on');
+        document.querySelectorAll('.tour-focus').forEach(el => el.classList.remove('tour-focus'));
+        setTour({ running: false, paused: false, step: -1 });
+      }, []);
+      const startTour = useCallback(() => {
+        clearTimeout(tourTimer.current);
+        document.body.classList.add('tour-on');
+        setTour({ running: true, paused: false, step: 0 });
+      }, []);
+      const toggleTourPause = useCallback(() => setTour(t => ({ ...t, paused: !t.paused })), []);
+
+      // sequencer: run the current step, then schedule the next
+      useEffect(() => {
+        if (!tour.running || tour.paused) return;
+        if (tour.step < 0) return;
+        if (tour.step >= TOUR.length) { stopTour(); return; }
+        const st = TOUR[tour.step];
+        try { st.run && st.run(); } catch (e) {}
+        tourTimer.current = setTimeout(() => {
+          setTour(t => (t.running && !t.paused) ? { ...t, step: t.step + 1 } : t);
+        }, st.wait || 4000);
+        return () => clearTimeout(tourTimer.current);
+        // eslint-disable-next-line
+      }, [tour.step, tour.running, tour.paused]);
+
       const showGenMix = profile.value_chain.includes('Generation') || profile.value_chain.includes('Integrated');
 
       // Remove splash once mounted
@@ -3444,6 +3569,27 @@ Company description:
               </div>
             </div>
           </footer>
+
+          {/* ---- Guided walkthrough ---- */}
+          {!tour.running && (
+            <button id="tour-launch" onClick={startTour} aria-label="Run the guided walkthrough">
+              <span className="dot" />
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="6 4 20 12 6 20 6 4" /></svg>
+              <span>Guided tour</span>
+            </button>
+          )}
+          <div id="tour-bar" className={tour.running ? 'on' : ''}>
+            <div className="tour-inner">
+              <div className="tour-prog" style={{ width: tour.step >= 0 ? `${(tour.step + 1) / TOUR.length * 100}%` : '0' }} />
+              <div className="tour-pulse" />
+              <div className="tour-txt">
+                <small>Guided walkthrough{tour.step >= 0 && tour.step < TOUR.length ? ` · ${TOUR[tour.step].tag}` : ''}</small>
+                <span>{tour.step >= 0 && tour.step < TOUR.length ? (tour.paused ? '⏸ Paused — ' : '') + TOUR[tour.step].text : 'Starting…'}</span>
+              </div>
+              <button onClick={toggleTourPause}>{tour.paused ? 'Resume' : 'Pause'}</button>
+              <button onClick={stopTour}>Skip ✕</button>
+            </div>
+          </div>
         </Fragment>
       );
     }
